@@ -5,7 +5,6 @@
 import { NextResponse } from "next/server";
 import { analyzeYears, InputError } from "@/lib/analyze";
 import { parseRequest } from "@/lib/validate";
-import { gzipSync } from "node:zlib";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,13 +15,8 @@ export async function POST(req: Request) {
     const { input, options } = parseRequest(body);
     const startYear = Number(body?.startYear);
     const result = analyzeYears(input, options, startYear);
-    const json = JSON.stringify(JSON.parse(JSON.stringify(result)));
-    if ((req.headers.get("accept-encoding") ?? "").includes("gzip")) {
-      return new NextResponse(new Uint8Array(gzipSync(json)), {
-        headers: { "Content-Type": "application/json; charset=utf-8", "Content-Encoding": "gzip", "Cache-Control": "no-store", Vary: "Accept-Encoding" },
-      });
-    }
-    return new NextResponse(json, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
+    // 압축은 서버(next start)·호스팅(Vercel)이 알아서 하도록 맡긴다 — 직접 gzip 하면 Vercel에서 응답이 깨질 수 있음
+    return new NextResponse(JSON.stringify(result), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof InputError) return NextResponse.json({ error: e.message }, { status: 400 });
     if (e instanceof SyntaxError) return NextResponse.json({ error: "요청 형식이 올바르지 않습니다." }, { status: 400 });

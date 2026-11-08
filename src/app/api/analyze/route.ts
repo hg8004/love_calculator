@@ -6,7 +6,6 @@ import { NextResponse } from "next/server";
 import { analyze, InputError } from "@/lib/analyze";
 import { parseRequest } from "@/lib/validate";
 import { toDTO } from "@/lib/serialize";
-import { gzipSync } from "node:zlib";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,12 +15,8 @@ export async function POST(req: Request) {
     const { input, options } = parseRequest(await req.json());
     const result = analyze(input, options);
     const json = JSON.stringify(toDTO(result));
-    // 결과(10년×12개월 근거 포함)가 1MB 이상이므로 gzip 으로 전송
-    if ((req.headers.get("accept-encoding") ?? "").includes("gzip")) {
-      return new NextResponse(new Uint8Array(gzipSync(json)), {
-        headers: { "Content-Type": "application/json; charset=utf-8", "Content-Encoding": "gzip", "Cache-Control": "no-store", Vary: "Accept-Encoding" },
-      });
-    }
+    // 결과(약 1.6MB)는 서버(next start)·호스팅(Vercel)이 자동 압축한다.
+    // 직접 gzip + Content-Encoding 을 붙이면 Vercel에서 응답이 깨질 수 있어 하지 않는다.
     return new NextResponse(json, { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" } });
   } catch (e) {
     if (e instanceof InputError) return NextResponse.json({ error: e.message }, { status: 400 });

@@ -113,7 +113,16 @@ export default function Home() {
     const started = Date.now();
     try {
       const res = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) });
-      const j = await res.json();
+      const raw = await res.text();
+      let j;
+      try {
+        j = JSON.parse(raw);
+      } catch {
+        // 호스팅 오류 페이지 등 JSON이 아닌 응답 — 원인 파악을 위해 상태 코드를 함께 보여 준다
+        setServerError(`서버 응답을 읽지 못했어요 (오류 코드 ${res.status}). 잠시 후 다시 시도해 주세요.`);
+        go("input", 4, true);
+        return;
+      }
       const wait = Math.max(0, MIN_LOADING_MS - (Date.now() - started));
       await new Promise((r) => setTimeout(r, wait));
       if (!res.ok) {
