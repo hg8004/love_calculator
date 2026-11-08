@@ -1,0 +1,37 @@
+{
+  "name": "dugeun-love-calculator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "두근두근 인연 해 계산기 - 사주팔자 기반 연애 성향 및 인연 시기 분석 플랫폼",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true,maxRetries:5})\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
+    "astronomy-engine": "2.1.19",
+    "korean-lunar-calendar": "0.3.6",
+    "luxon": "3.7.2",
+    "next": "16.4.2",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/luxon": "3.7.5",
+    "@types/node": "24.19.2",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.3",
+    "lunar-javascript": "1.7.7",
+    "postcss": "8.5.30",
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  }
+}
