@@ -65,7 +65,8 @@ export interface StarAnalysis {
   element: Element;
   occurrences: StarOccurrence[];
   revealed: boolean;
-  level: "유력" | "보통" | "약함" | "근거 제한적";
+  /** 많음 = 여러 기둥에 퍼져 있고 월령·투출까지 얻은 상태(관살 과다·재다) */
+  level: "많음" | "유력" | "보통" | "약함" | "근거 제한적";
   score: number;
   factors: string[];
   mixed: string | null;
@@ -284,9 +285,17 @@ function analyzeStar(chart: NatalChart, gender: "male" | "female"): StarAnalysis
     : null;
   const s = Math.round(score * 10) / 10;
   const onlyWeak = occ.length > 0 && occ.every((o) => o.layer === "지장간" && (o.role === "여기" || o.optional));
-  const level: StarAnalysis["level"] = !occ.length ? "근거 제한적" : onlyWeak ? "약함" : s >= 2.2 ? "유력" : s >= 1 ? "보통" : "약함";
+  // 많음(과다): 이성의 별이 세 기둥 이상에 뚜렷하고(본기·천간), 투출했거나 월령을 얻었으면
+  // 극제·충으로 점수가 깎여도 '보통'이 아니라 과다로 본다 — 전통적으로 관살 과다·재다는 별도 구조로 읽기 때문
+  const strongPillars = new Set(occ.filter((o) => o.layer === "천간" || (o.role === "본기" && !o.optional)).map((o) => o.pillar));
+  const excess = strongPillars.size >= 3 && (revealed || monthEl === el);
+  const weakMe = chart.strength.score < 40;
+  const level: StarAnalysis["level"] = !occ.length ? "근거 제한적" : excess ? "많음" : onlyWeak ? "약함" : s >= 2.2 ? "유력" : s >= 1 ? "보통" : "약함";
+  if (excess) factors.unshift(`이성의 별이 ${[...strongPillars].map((k) => PILLAR_NAME[k]).join("·")} 여러 기둥에 뚜렷해요. (${gender === "female" ? "관살 과다" : "재다"})`);
+  const excessName = gender === "female" ? "관살 과다" : "재다";
   const summary =
     level === "근거 제한적" ? `사주 안에서 이성의 별(${name})을 찾을 수 없어요. 그렇다고 인연이 없다는 뜻은 아니에요. 판단 근거가 제한적이라, 운에서 이성의 별이 들어오는 시기를 함께 봐요.`
+      : level === "많음" ? `이성의 별(${name})이 사주 여러 자리에 많아요(${excessName}). 이성의 관심과 인연이 자주 들어오는 사주예요.${weakMe ? " 다만 나의 기운이 여린 편이라, 많은 인연 중에서 나를 지치게 하는 사람보다 나를 품어 주는 사람을 골라야 해요." : ""}`
       : level === "유력" ? `이성의 별(${name})이 뚜렷하고 힘도 있는 편이에요.`
         : level === "보통" ? `이성의 별(${name})이 있고, 힘은 보통이에요.`
           : `이성의 별(${name})이 있긴 하지만 힘이 약하거나 숨어 있는 편이에요.`;
@@ -315,6 +324,13 @@ export function buildLoveAnalysis(
   else if (generates(S, P)) rel = `이성의 별(${COMMON[S]})이 배우자 자리(${COMMON[P]})를 키워 주는 사이라, 만나는 사람이 관계를 든든하게 받쳐 주기 쉬워요!`;
   else if (generates(P, S)) rel = `배우자 자리(${COMMON[P]})가 이성의 별(${COMMON[S]})을 키워 주는 사이라, 내가 마음을 쏟을수록 관계가 깊어지기 쉬워요!`;
   else if (controls(S, P)) rel = `이성의 별(${COMMON[S]})이 배우자 자리(${COMMON[P]})를 누르는 사이라, 상대가 관계를 주도하고 내가 맞춰 주는 일이 많을 수 있어요. 서로 속도를 맞추면 오히려 단단한 관계가 돼요!`;
+  else if (gender === "female" && palace.tenGod === "식신")
+    // 식신제살: 일지 식신이 관살을 다스림 — 관살이 많을수록 길하게 보는 전통 구조
+    rel = `배우자 자리의 여유와 재치의 기운(식신)이 이성의 별(${COMMON[S]})을 다스리는 구조(식신제살)라, 강한 사람을 만나도 내가 부드럽게 관계의 중심을 잡게 돼요!${star.level === "많음" ? " 이성의 기운이 많은 사주에서 이 구조는 센 인연을 내 편으로 만드는 힘이 돼요." : ""}`;
+  else if (gender === "female" && palace.tenGod === "상관")
+    rel = `배우자 자리의 재치와 표현의 기운(상관)이 이성의 별(${COMMON[S]})과 부딪히는 구조(상관견관)라, 상대의 부족한 점이 잘 보이고 말로 맞서기 쉬워요. 하고 싶은 말을 한 번 다듬어 전하면 관계가 오래가요!`;
+  else if (gender === "male" && (palace.tenGod === "겁재" || palace.tenGod === "비견"))
+    rel = `배우자 자리의 나와 닮은 기운(${palace.tenGod})이 이성의 별(${COMMON[S]})을 누르는 구조라, 내 주관대로 관계를 이끌기 쉽고 경쟁자가 끼어들기도 쉬워요. 상대의 뜻을 먼저 물어 주면 관계가 훨씬 편안해져요!`;
   else rel = `배우자 자리(${COMMON[P]})가 이성의 별(${COMMON[S]})을 누르는 사이라, 내가 관계를 이끄는 쪽이 되기 쉬워요. 상대의 이야기를 충분히 들어 주면 관계가 훨씬 편안해져요!`;
   const detail: string[] = [];
   const inPalace = palace.hidden.filter((h) => h.isStar);
@@ -324,7 +340,7 @@ export function buildLoveAnalysis(
 
   // 유형
   const palaceOk = palace.force.level !== "약" && palace.stability.level !== "흔들림 큼";
-  const starOk = star.level === "유력" || star.level === "보통";
+  const starOk = star.level === "많음" || star.level === "유력" || star.level === "보통";
   const code: LoveAnalysis["type"]["code"] = palaceOk && starOk ? "A" : palaceOk ? "B" : starOk ? "C" : "D";
   const TYPE: Record<typeof code, { title: string; summary: string }> = {
     A: { title: "배우자 자리도, 이성의 별도 비교적 뚜렷한 구조", summary: "두 요소가 서로 돕는지 부딪히는지, 한쪽으로 지나치게 몰리지 않았는지를 함께 봐요." },
@@ -398,7 +414,9 @@ export function buildLoveAnalysis(
         : "가끔은 서로 맞춰 가야 하지만, 그만큼 함께 자라는 사람이에요.";
   overview.push({ t: `배우자 자리(일지)에 ${palace.char}, 곧 ${COMMON[P]}의 기운이 있어, 닿게 될 인연은 ${PALACE_PERSON[P]} 사람이자 ${forcePerson} 사람일 가능성이 있어요. ${stabPerson} ` });
   const starPerson =
-    star.level === "유력" ? `사주에 이성의 별(${starName})이 뚜렷해, 이런 사람이 자연스럽게 다가올 가능성이 커요.`
+    star.level === "많음"
+      ? `사주에 이성의 별(${starName})이 여러 자리에 많아, 이성의 인연이 자주 들어오는 편이에요.${chart.strength.score < 40 ? " 나의 기운이 여린 만큼, 많은 인연 중에서도 나를 편안하게 품어 주는 사람을 골라야 오래 가요." : ""}`
+      : star.level === "유력" ? `사주에 이성의 별(${starName})이 뚜렷해, 이런 사람이 자연스럽게 다가올 가능성이 커요.`
       : star.level === "보통" ? `사주에 이성의 별(${starName})이 적당히 있어, 이런 사람과 무리 없이 인연이 닿을 가능성이 있어요.`
         : star.level === "약함" ? `사주에 이성의 별(${starName})이 땅속에 숨어 있어, 이런 사람이 조용히, 천천히 다가올 가능성이 있어요.`
           : `사주에 이성의 별(${starName})이 드러나지 않아, 이런 사람은 운에서 이성의 별이 들어오는 해에 만나게 될 가능성이 있어요.`;
@@ -408,7 +426,11 @@ export function buildLoveAnalysis(
       : generates(S, P) ? "관계를 든든하게 받쳐 주는 사람일 가능성이 커요!"
         : generates(P, S) ? "내가 마음을 쏟을수록 더 깊어지는 사람이에요!"
           : controls(S, P) ? "관계를 이끌어 주는 리드형일 가능성이 있어요. 서로 속도를 맞추면 단단한 사이가 돼요!"
-            : "내가 이끌고 상대가 따라와 주는 사이가 되기 쉬워요. 상대의 이야기를 충분히 들어 주면 더 좋아요!";
+            : gender === "female" && palace.tenGod === "식신"
+              ? "강한 사람이어도 내가 부드럽게 관계의 중심을 잡게 되는 사이예요(식신제살)!"
+              : gender === "female" && palace.tenGod === "상관"
+                ? "서로 할 말은 하는 사이가 되기 쉬워요. 말을 한 번 다듬어 전하면 오래가요(상관견관)!"
+                : "내가 이끌고 상대가 따라와 주는 사이가 되기 쉬워요. 상대의 이야기를 충분히 들어 주면 더 좋아요!";
   overview.push({ t: REL_PERSON + " " });
   if (inPalace.length) overview.push({ t: "생활 반경 안에서 자연스럽게 만나게 될 사람이기도 해요. " });
   if (support) {

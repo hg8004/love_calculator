@@ -7,7 +7,7 @@
 import { ELEMENTS, ELEMENT_KO, Element, STEMS, STEMS_KO, STEM_ELEMENT, TEN_GOD_GROUP, TenGod, TenGodGroup, elementOfGroup, controlledBy, controlsWhat } from "../saju/constants";
 import type { NatalChart } from "../saju/chart";
 import { DAY_STEM_PROFILE, FEMALE_APPEARANCE, MALE_APPEARANCE } from "../love/knowledge";
-import { ELEMENT_MANY, ELEMENT_NONE, GROUP_PLAIN } from "./knowledge";
+import { GROUP_MANY, GROUP_NONE, GROUP_PLAIN } from "./knowledge";
 
 export interface ReadingItem {
   title: string;
@@ -47,13 +47,28 @@ export function buildReading(chart: NatalChart, gender: "male" | "female"): Read
   const none = ELEMENTS.filter((e) => counts[e] === 0);
   const hiddenHas = (e: Element) => Object.values(chart.pillars).some((p) => p?.hidden.some((h) => STEM_ELEMENT[h.stem] === e));
   const elNotes: ReadingItem[] = [];
-  for (const e of many) elNotes.push({ title: `${ELEMENT_KO[e]}(${e})이(가) 많아요 · ${counts[e]}개`, text: `${ELEMENT_MANY[e].good} 다만 ${ELEMENT_MANY[e].care}`, basis: `여덟 글자 중 ${e} ${counts[e]}개` });
-  for (const e of none)
+  // 오행의 뜻은 '나(일간)에게 어떤 십성인가'로 푼다 — 같은 오행도 일간마다 의미가 다르다
+  const ALL_GROUPS: TenGodGroup[] = ["비겁", "식상", "재성", "관성", "인성"];
+  const groupOf = (e: Element): TenGodGroup => ALL_GROUPS.find((g) => elementOfGroup(ds, g) === e)!;
+  const weak = st.score < 40;
+  const relWord = (g: TenGodGroup) => (gender === "female" && g === "관성") || (gender === "male" && g === "재성") ? " 이성을 뜻하는 별이기도 해서, 이성의 관심과 인연이 자주 따르는 편이에요." : "";
+  for (const e of many) {
+    const g = groupOf(e);
+    const gm = GROUP_MANY[g];
+    elNotes.push({
+      title: `${ELEMENT_KO[e]}(${e})이(가) 많아요 · ${counts[e]}개`,
+      text: `나(${STEMS[ds]}${ELEMENT_KO[dmEl]})에게 ${ELEMENT_KO[e]}은(는) ${GROUP_PLAIN[g]}이에요. ${gm.good}${relWord(g)} 다만 ${weak && gm.careWeak ? gm.careWeak : gm.care}`,
+      basis: `여덟 글자 중 ${e} ${counts[e]}개 · 일간 ${STEMS[ds]} 기준 ${g}${weak ? " · 신약" : ""}`,
+    });
+  }
+  for (const e of none) {
+    const g = groupOf(e);
     elNotes.push({
       title: `${ELEMENT_KO[e]}(${e})이(가) 없어요`,
-      text: ELEMENT_NONE[e] + (hiddenHas(e) ? " 겉으로는 없지만 지지 속(지장간)에 숨어 있어, 필요할 때 꺼내 쓸 수 있는 기운이에요." : ""),
-      basis: hiddenHas(e) ? "천간·지지 0개, 지지 속(지장간)에는 있음" : "천간·지지·지장간 모두 없음",
+      text: `나(${STEMS[ds]}${ELEMENT_KO[dmEl]})에게 ${ELEMENT_KO[e]}은(는) ${GROUP_PLAIN[g]}이에요. ${GROUP_NONE[g]}` + (hiddenHas(e) ? " 다만 지지 속(지장간)에 숨어 있어 아예 없는 기운은 아니에요. 겉으로 드러나지 않아 힘은 약한 편이고, 운에서 이 기운이 들어올 때 비로소 살아나요." : ""),
+      basis: (hiddenHas(e) ? "천간·지지 0개, 지지 속(지장간)에는 있음" : "천간·지지·지장간 모두 없음") + ` · 일간 ${STEMS[ds]} 기준 ${g}`,
     });
+  }
   if (!many.length && !none.length) elNotes.push({ title: "오행이 고르게 있어요", text: "다섯 기운이 비교적 고르게 있어 어느 한쪽으로 치우치지 않는 편이에요.", basis: ELEMENTS.map((e) => `${e}${counts[e]}`).join(" ") });
 
   // ── 성격 ──
@@ -69,9 +84,14 @@ export function buildReading(chart: NatalChart, gender: "male" | "female"): Read
   const personality: ReadingItem[] = [
     { title: "타고난 기질", text: dayMaster.summary, basis: `나를 뜻하는 글자(일간) ${STEMS[ds]}(${ELEMENT_KO[dmEl]}) · 기운의 세기 ${st.score}점` },
     { title: "사람을 대할 때", text: `${prof.social} ${groupSocial[topGroup]}`, basis: `가장 많은 기운: ${GROUP_PLAIN[topGroup]} ${w[topGroup]}%` },
-    { title: "감정 표현", text: prof.emotion + (w["식상"] >= 25 ? " 생각한 것을 말과 행동으로 잘 드러내는 편이에요." : w["인성"] >= 25 ? " 감정을 충분히 정리한 뒤에 표현하는 편이에요." : ""), basis: `표현하는 기운 ${w["식상"]}% · 생각하는 기운 ${w["인성"]}%` },
-    { title: "강점", text: prof.strengths.join(", ") + (many[0] ? `. 그리고 ${ELEMENT_MANY[many[0]].good}` : "."), basis: `일간 ${STEMS[ds]}${many[0] ? ` · ${ELEMENT_KO[many[0]]} ${counts[many[0]]}개` : ""}` },
-    { title: "조심할 점", text: prof.cautions.join(", ") + (many[0] ? `. 또 ${ELEMENT_MANY[many[0]].care}` : "."), basis: `일간 ${STEMS[ds]}${many[0] ? ` · ${ELEMENT_KO[many[0]]}이(가) 많음` : ""}` },
+    {
+      title: "감정 표현",
+      // 일간 성향(속으로 삭임 등)과 식상(표현)이 함께 있으면 모순되지 않게 '평소 → 마음먹으면' 순으로 잇는다
+      text: prof.emotion + (w["식상"] >= 25 ? " 그래도 마음을 정하면 말과 행동으로 분명하게 드러낼 줄 알아요." : w["인성"] >= 25 ? " 감정을 충분히 정리한 뒤에 표현하는 편이에요." : ""),
+      basis: `표현하는 기운 ${w["식상"]}% · 생각하는 기운 ${w["인성"]}%`,
+    },
+    { title: "강점", text: prof.strengths.join(", ") + (many[0] ? `. 그리고 ${GROUP_MANY[groupOf(many[0])].good}` : "."), basis: `일간 ${STEMS[ds]}${many[0] ? ` · ${ELEMENT_KO[many[0]]} ${counts[many[0]]}개(${groupOf(many[0])})` : ""}` },
+    { title: "조심할 점", text: prof.cautions.join(", ") + (many[0] ? `. 또 ${weak && GROUP_MANY[groupOf(many[0])].careWeak ? GROUP_MANY[groupOf(many[0])].careWeak : GROUP_MANY[groupOf(many[0])].care}` : "."), basis: `일간 ${STEMS[ds]}${many[0] ? ` · ${ELEMENT_KO[many[0]]}이(가) 많음(${groupOf(many[0])})${weak ? " · 신약" : ""}` : ""}` },
   ];
 
   // ── 연애 성향 (취향은 '경향'으로만) ──

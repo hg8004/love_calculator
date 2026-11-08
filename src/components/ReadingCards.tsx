@@ -94,7 +94,7 @@ export function LoveCard({ r, onGoTimeline }: { r: AnalysisDTO; onGoTimeline: ()
   const sc = ELEMENT_COLOR[L.star.element];
   const forceTone = L.palace.force.level === "강" ? "good" : L.palace.force.level === "약" ? "care" : "neutral";
   const stabTone = L.palace.stability.level === "안정" ? "good" : L.palace.stability.level === "흔들림 큼" ? "care" : "neutral";
-  const starTone = L.star.level === "유력" ? "good" : L.star.level === "보통" ? "neutral" : "care";
+  const starTone = L.star.level === "유력" ? "good" : L.star.level === "보통" || L.star.level === "많음" ? "neutral" : "care";
   const timeLines = L.conclusion.inferences.filter((x) => x.startsWith("운에서") || x.startsWith("운이 배우자 자리를 크게"));
   const minorLine = L.conclusion.inferences.find((x) => x.startsWith("운이 배우자 자리에 작은"));
 
