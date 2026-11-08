@@ -131,7 +131,7 @@ describe("핵심 원칙 (지침 9장)", () => {
     expect(r.love.overviewText).toMatch(/사람일 가능성이 있어요/);
     // 한 문단 이야기: 외모·성격·일·만남·시기가 모두 이어져 있고, 시기는 강조 표시
     const story = r.love.partner.storyText;
-    expect(story).toContain("분위기의 사람이에요");
+    expect(story).toMatch(/^첫인상은 .+이지만, 가까워지면 .+ 면이 보이는 사람이에요/);
     expect(story).toContain("가능성이 커요");
     expect(story).toContain("인연이 깊어지기 쉬워요");
     expect(r.love.partner.story.some((s) => s.b && /\d{4}/.test(s.t))).toBe(true);

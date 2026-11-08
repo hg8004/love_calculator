@@ -565,7 +565,8 @@ function inferPartner(
     palace.stability.level === "흔들림 큼" ? "이사·이직처럼 환경이 바뀌는 시기에 새로 만나" : inPalace ? "처음엔 생활 반경 안에서 편한 사이로 시작해" : inMonth ? "직장·학교·모임처럼 함께 활동하는 자리에서 만나" : "소개나 새로운 모임에서 만나";
   const years = [...(timing?.bestYears ?? [])].sort((a, b) => a - b);
   const story: Array<{ t: string; b?: boolean }> = [
-    { t: `${LOOK_SHORT[S]} 느낌에 ${LOOK_STAR_SHORT[main]}, 전체적으로 ${SEASON_LOOK[season]} 분위기의 사람이에요. ` },
+    // 첫인상(이성의 별) → 가까워졌을 때의 모습(배우자 자리) 순으로 이어, 한 사람의 서로 다른 면으로 읽히게 한다
+    { t: `첫인상은 ${LOOK_STAR_SHORT[main]}에 ${LOOK_SHORT[S]} 느낌이지만, 가까워지면 ${SEASON_LOOK[season]} 면이 보이는 사람이에요. ` },
     { t: `${PERSONA_S[main]} 사람이고${both ? `, 때로는 ${PERSONA_S[other]} 면도 함께 보여요` : "요"}. `.replace("사람이고요", "사람이에요") },
     { t: age.short.startsWith("나이 차") ? "" : "나이는 " }, { t: age.short, b: true }, { t: "일 가능성이 커요. " },
     { t: `${FIELD_S[S]} 같은 분야에서 ${WORK_S[main]} 사람일 가능성이 커요. ` },
@@ -607,21 +608,28 @@ export function inferAge(
     s[k] += v;
     why[k].push([v, r]);
   };
+  // 같은 기둥의 천간·지지에 겹쳐 있어도 한 기둥은 최대 1로 센다(한 자리를 두 번 세지 않도록)
   const byPillar: Record<PillarKey, number> = { year: 0, month: 0, day: 0, hour: 0 };
-  for (const o of star.occurrences) if (!o.optional) byPillar[o.pillar] += o.weight;
+  for (const o of star.occurrences) if (!o.optional) byPillar[o.pillar] = Math.min(1, byPillar[o.pillar] + o.weight);
   if (byPillar.year) add("older", 1.5 * byPillar.year, "이성의 별이 연주(윗세대 자리)에 있어");
   if (byPillar.month) { add("older", 0.7 * byPillar.month, "이성의 별이 월주(사회·또래보다 조금 위의 자리)에 있어"); s.same += 0.3 * byPillar.month; }
   if (byPillar.day) add("same", 1.2 * byPillar.day, "이성의 별이 배우자 자리에 함께 있어");
-  if (byPillar.hour) add("younger", 1.5 * byPillar.hour, "이성의 별이 시주(아랫세대 자리)에 있어");
+  // 시주의 이성의 별은 전통적으로 '늦게 맺어지는 인연(만혼)'으로 더 많이 읽으므로 연하 근거로는 약하게만 반영
+  if (byPillar.hour) add("younger", 0.6 * byPillar.hour, "이성의 별이 시주(아랫세대 자리)에도 있어");
   const g = TEN_GOD_GROUP[palace.tenGod];
   if (g === "인성") add("older", 1, "배우자 자리에 보살핌의 기운이 있어");
-  if (g === "식상") add("younger", 1, "배우자 자리에 표현·돌봄의 기운이 있어");
+  // 여성의 식상은 본래 자녀의 별이라 배우자 나이의 근거로는 약하게만 본다
+  if (g === "식상") add("younger", gender === "female" ? 0.4 : 0.8, "배우자 자리에 표현·돌봄의 기운이 있어");
   if (g === "비겁") add("same", 1, "배우자 자리에 나와 닮은 기운이 있어");
   if (g === "관성") add("older", 0.5, "배우자 자리에 책임의 기운이 있어");
   if (g === "재성") add("younger", 0.5, "배우자 자리에 내가 이끄는 기운이 있어");
   if (gender === "female" && main === "정관") add("older", 0.5, "반듯한 질서의 별(정관)이 이성의 별이라");
   if (gender === "male" && main === "정재") add("younger", 0.5, "성실한 기운의 별(정재)이 이성의 별이라");
-  if (chart.strength.score < 40) add("older", 0.5, "나의 기운이 여린 편이라 기댈 수 있는 사람을 찾게 돼");
+  // 이성의 별이 여러 자리에 강하게 퍼져 있고 나의 기운이 여리면 → 나를 이끌어 줄 연상·나이 차 있는 상대 (전통적으로 가장 흔한 해석)
+  const starPillars = (Object.keys(byPillar) as PillarKey[]).filter((k) => byPillar[k] > 0).length;
+  const heavy = starPillars >= 3 || chart.tenGodWeighted[star.group] >= 30;
+  if (heavy && chart.strength.score < 40) add("older", 1.5, gender === "female" ? "사주에 남자의 기운(관성)이 강하고 나의 기운은 여린 편이라 나를 품어 줄 사람을 찾게 돼" : "사주에 여자의 기운(재성)이 강하고 나의 기운은 여린 편이라 나를 이끌어 줄 사람을 찾게 돼");
+  else if (chart.strength.score < 40) add("older", 0.5, "나의 기운이 여린 편이라 기댈 수 있는 사람을 찾게 돼");
   else if (chart.strength.score >= 60) add("younger", 0.3, "나의 기운이 강한 편이라 내가 이끌 수 있는 사람과 맞아");
   const order = (Object.keys(s) as Array<keyof typeof s>).sort((a, b) => s[b] - s[a]);
   const top = order[0];
