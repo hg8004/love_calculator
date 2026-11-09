@@ -85,6 +85,8 @@ export interface LoveAnalysis {
   overview: Array<{ t: string; b?: boolean }>;
   overviewText: string;
   partner: { intro: string; story: Array<{ t: string; b?: boolean }>; storyText: string; items: PartnerItem[] };
+  /** 배우자 자리에 얹힌 전통 표지(공망·괴강·양인·백호·도화·홍염·고신/과숙) */
+  marks: PalaceMark[];
   conclusion: { facts: string[]; inferences: string[]; limits: string[] };
 }
 
@@ -303,6 +305,95 @@ function analyzeStar(chart: NatalChart, gender: "male" | "female"): StarAnalysis
   return { name, group: sg, element: el, occurrences: occ, revealed, level, score: s, factors, mixed, summary };
 }
 
+export interface PalaceMark {
+  name: string;
+  text: string;
+  basis: string;
+}
+
+/** 순(旬)의 공망 두 지지 — 그 간지가 속한 순(甲으로 시작하는 10간지)에 들지 못한 두 지지 */
+export function xunEmpty(stem: number, branch: number): [number, number] {
+  const b0 = (((branch - stem) % 12) + 12) % 12; // 그 순의 甲이 앉은 지지
+  return [(b0 + 10) % 12, (b0 + 11) % 12];
+}
+
+/**
+ * 배우자 자리(일지)에 얹힌 전통 표지 — 명리에서 배우자 인연을 볼 때 빠지지 않는 항목들.
+ *  - 공망: 일지는 년주 기준(일주 기준으로는 일지가 공망이 될 수 없음), 이성의 별은 일주 기준
+ *  - 일주·일지 신살: 괴강·백호(일주), 양인·도화·홍염(일지), 고신(남)·과숙(여)
+ * 원국에 고정된 표지라 월별 비교 점수에는 넣지 않고(모든 달에 같게 작용), 해석에만 쓴다.
+ * 문장은 단정·공포 표현 없이 '그래서 이런 사람·관계가 잘 맞는다'로 끝맺는다.
+ */
+export function palaceMarks(chart: NatalChart, gender: "male" | "female"): PalaceMark[] {
+  const out: PalaceMark[] = [];
+  const day = chart.pillars.day!;
+  const year = chart.pillars.year!;
+  const has = (name: string, where: (p: string) => boolean) => chart.shinsal.some((s) => s.name === name && s.positions.some(where));
+  const onDayBranch = (p: string) => p.startsWith("일지");
+  const onDayPillar = (p: string) => p.startsWith("일주");
+
+  const [ye1, ye2] = xunEmpty(year.stem, year.branch);
+  if (day.branch === ye1 || day.branch === ye2) {
+    out.push({
+      name: "배우자 자리 공망",
+      text: "배우자 자리가 공망(비어 있는 자리)에 걸려 있어, 마음에 드는 사람을 만나도 확신이 서기까지 시간이 걸리는 편이에요. 서두르기보다 충분히 알아 간 뒤에 맺는 인연이 오래가요.",
+      basis: `년주 ${year.stemChar}${year.branchChar} 기준 공망 ${BRANCHES[ye1]}·${BRANCHES[ye2]} — 일지 ${day.branchChar}`,
+    });
+  }
+  const sg: TenGodGroup = gender === "male" ? "재성" : "관성";
+  const [de1, de2] = xunEmpty(day.stem, day.branch);
+  const emptyStar = (["year", "month", "hour"] as PillarKey[]).filter((k) => {
+    const p = chart.pillars[k];
+    return p && (p.branch === de1 || p.branch === de2) && TEN_GOD_GROUP[tenGodOf(chart.dayStem, mainHiddenStem(p.branch))] === sg;
+  });
+  if (emptyStar.length) {
+    out.push({
+      name: "이성의 별 공망",
+      text: `이성의 별이 들어 있는 ${emptyStar.map((k) => `${PILLAR_NAME[k]} ${chart.pillars[k]!.branchChar}`).join("·")} 자리가 공망이라, 그 인연은 생각보다 늦게 실감 나는 편이에요. 운에서 그 글자를 채우거나 깨우는 해에 비로소 힘을 받아요.`,
+      basis: `일주 ${day.stemChar}${day.branchChar} 기준 공망 ${BRANCHES[de1]}·${BRANCHES[de2]}`,
+    });
+  }
+  if (has("괴강살", onDayPillar))
+    out.push({
+      name: "괴강 일주",
+      text: "배우자 자리에 아주 강한 기운(괴강)이 있어, 관계에서 자존심과 주도권이 부딪히기 쉬워요. 그래서 나만큼 단단하고 그릇이 큰 사람이어야 기 싸움 없이 오래가요.",
+      basis: `일주 ${day.stemChar}${day.branchChar} 괴강${gender === "female" ? " (전통적으로 여성의 괴강 일주를 특히 중시)" : ""}`,
+    });
+  if (has("양인살", onDayBranch))
+    out.push({
+      name: "일지 양인",
+      text: "배우자 자리에 양인(칼날처럼 강한 기운)이 있어, 상대도 개성이 강한 사람일 가능성이 크고 서로 기 싸움이 생기기 쉬워요. 각자의 영역을 정해 두면 든든한 동반자가 돼요.",
+      basis: `일간 ${day.stemChar}의 양인 ${day.branchChar}이(가) 일지`,
+    });
+  if (has("백호살", onDayPillar))
+    out.push({
+      name: "백호 일주",
+      text: "배우자 자리에 백호가 있어, 관계에서 일이 생기면 크고 빠르게 번지는 편이에요. 감정이 격해졌을 때 큰 결정만 미루면, 그 강한 기운이 오히려 서로를 지키는 힘이 돼요.",
+      basis: `일주 ${day.stemChar}${day.branchChar} 백호`,
+    });
+  if (has("도화살", onDayBranch))
+    out.push({
+      name: "일지 도화",
+      text: "배우자 자리에 도화가 있어, 매력이 뚜렷한 사람과 인연이 닿기 쉽고 연애에서도 설렘을 중요하게 여겨요.",
+      basis: `년지 기준 도화 ${day.branchChar}이(가) 일지`,
+    });
+  if (has("홍염살", onDayBranch))
+    out.push({
+      name: "일지 홍염",
+      text: "배우자 자리에 홍염이 있어, 분위기와 감성이 통하는 사람에게 깊이 끌려요.",
+      basis: `일간 ${day.stemChar} 기준 홍염 ${day.branchChar}이(가) 일지`,
+    });
+  // 전통적으로 남성은 고신, 여성은 과숙을 배우자 인연에서 본다
+  const lonely = gender === "male" ? "고신살" : "과숙살";
+  if (has(lonely, () => true))
+    out.push({
+      name: gender === "male" ? "고신" : "과숙",
+      text: `사주에 ${gender === "male" ? "고신" : "과숙"}(혼자만의 영역을 지키려는 기운)이 있어, 연애에 마음을 늦게 열거나 함께 있어도 혼자만의 시간이 꼭 필요한 편이에요. 이 시간을 이해해 주는 사람이 잘 맞아요.`,
+      basis: `년지 ${year.branchChar} 기준 ${lonely} (전통적으로 ${gender === "male" ? "남성은 고신" : "여성은 과숙"}을 봄)`,
+    });
+  return out;
+}
+
 export function buildLoveAnalysis(
   chart: NatalChart,
   gender: "male" | "female",
@@ -383,6 +474,8 @@ export function buildLoveAnalysis(
     `이성의 별(${starName}) 위치: ${star.occurrences.length ? star.occurrences.map((o) => `${o.where} ${o.char}(${o.tenGod}${o.role ? `, ${o.role}` : ""}${o.optional ? ", 학파에 따라 제외" : ""})`).join(" · ") : "원국에서 찾을 수 없음"}`,
     `천간에 드러난 이성의 별: ${star.revealed ? "있음" : "없음"}`,
   ];
+  const marks = palaceMarks(chart, gender);
+  if (marks.length) facts.push(`배우자 자리의 전통 표지: ${marks.map((m) => `${m.name}(${m.basis})`).join(" · ")}`);
   const inferences: string[] = [
     `배우자 자리의 힘: ${palace.force.level}, 안정성: ${palace.stability.level}`,
     `이성의 별의 힘: ${star.level}`,
@@ -440,6 +533,8 @@ export function buildLoveAnalysis(
                   ? "겉으로는 내가 관계를 챙기는 쪽이 되기 쉽지만, 속으로는 기댈 수 있는 사이가 되면 더 좋아요!"
                   : "내가 이끌고 상대가 따라와 주는 사이가 되기 쉬워요. 상대의 이야기를 충분히 들어 주면 더 좋아요!";
   overview.push({ t: REL_PERSON + " " });
+  // 배우자 자리의 전통 표지는 가장 중요한 것 하나만 문단에 넣고, 나머지는 '자세히 보기'에 둔다
+  if (marks[0]) overview.push({ t: marks[0].text + " " });
   // '만남의 계기'와 같은 판단을 쓴다 — 배우자 자리가 흔들리면(충) 이미 '환경이 바뀌는 시기'라고 말했으므로 '생활 반경'과 겹쳐 말하지 않는다
   if (palace.stability.level !== "흔들림 큼" && palace.hidden.some((h) => h.isStar && !h.optional)) overview.push({ t: "생활 반경 안에서 자연스럽게 만나게 될 사람이기도 해요. " });
   if (support) {
@@ -458,6 +553,7 @@ export function buildLoveAnalysis(
     overview,
     overviewText: overview.map((x) => x.t).join("").trim(),
     partner: inferPartner(chart, gender, palace, star, timing),
+    marks,
     conclusion: { facts, inferences, limits },
   };
 }

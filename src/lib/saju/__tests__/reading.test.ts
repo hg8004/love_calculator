@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { analyzeChart } from "../chart";
 import { HIDDEN_STEMS, STEMS, BRANCHES, tenGodOf } from "../constants";
-import { buildLoveAnalysis, findStarOccurrences } from "../../reading/love";
+import { buildLoveAnalysis, findStarOccurrences, xunEmpty } from "../../reading/love";
 import type { FourPillars } from "../pillars";
 import { analyze } from "../../analyze";
 import { buildCrossPrompt } from "../../prompt/crossPrompt";
@@ -251,5 +251,23 @@ describe("결과 문장의 일관성", () => {
       const p = m.score.partnerTraits.join("|");
       expect(/이동|환경 변화/.test(p) && /생활 속에서|지인 소개/.test(p), p).toBe(false);
     }
+  });
+});
+
+describe("배우자 자리의 전통 표지 (공망·일주 신살)", () => {
+  it("순공(旬空): 甲子순 戌亥, 甲戌순 申酉, 壬戌·癸亥는 甲寅순 子丑", () => {
+    expect(xunEmpty(0, 0)).toEqual([10, 11]); // 甲子
+    expect(xunEmpty(0, 10)).toEqual([8, 9]); // 甲戌
+    expect(xunEmpty(8, 10)).toEqual([0, 1]); // 壬戌 → 甲寅순
+    expect(xunEmpty(9, 11)).toEqual([0, 1]); // 癸亥 → 甲寅순
+  });
+  it("壬戌 일주 여성: 괴강·백호 일주와 과숙을 배우자 자리 해석에 넣는다", () => {
+    const r = analyze({ gender: "female", calendar: "solar", year: 1994, month: 10, day: 3, hour: 14, minute: 20, location: SEOUL }, undefined, NOW);
+    const names = r.love.marks.map((m) => m.name);
+    expect(names).toEqual(expect.arrayContaining(["괴강 일주", "백호 일주", "과숙"]));
+    expect(r.love.overviewText).toContain(r.love.marks[0].text);
+    expect(r.love.conclusion.facts.some((f) => f.startsWith("배우자 자리의 전통 표지"))).toBe(true);
+    // 전통 표지라도 단정·공포 표현은 쓰지 않는다
+    for (const m of r.love.marks) expect(m.text).not.toMatch(/이혼|과부|홀아비|팔자가 세|반드시/);
   });
 });

@@ -167,6 +167,14 @@ export function LoveCard({ r, onGoTimeline }: { r: AnalysisDTO; onGoTimeline: ()
                 </div>
                 <ul className="mt-1.5 grid gap-0.5">{[...L.palace.force.factors, ...L.palace.stability.items].map((w, i) => <li key={i}>· {w}</li>)}</ul>
               </div>
+              {L.marks.length > 0 && (
+                <div>
+                  <p className="font-bold text-brand">배우자 자리의 전통 표지</p>
+                  <ul className="mt-1 grid gap-1">
+                    {L.marks.map((m) => <li key={m.name}>· <strong>{m.name}</strong> — {m.text} <span className="text-sub">({m.basis})</span></li>)}
+                  </ul>
+                </div>
+              )}
               <div>
                 <p className="font-bold text-brand">이성의 별 ({L.starName})</p>
                 {L.star.occurrences.length > 0 && (

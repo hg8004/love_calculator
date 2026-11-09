@@ -18,8 +18,8 @@ import type { LuckPillarInfo } from "../saju/luck";
 import { TEN_GOD_INFO } from "./knowledge";
 import { Evidence, ev } from "./types";
 
-export const SCORE_VERSION = "love-score/1.0.0";
-export const SCORE_VERSION_NOTE = "2026-11 초기 버전. 가중치는 전통 해석을 바탕으로 설계자가 정한 값이며, 실제 연애 데이터로 보정되지 않았습니다.";
+export const SCORE_VERSION = "love-score/1.1.0";
+export const SCORE_VERSION_NOTE = "2026-11 1.1: 배우자궁 복음을 가점→약한 주의로, 여성 겁재 운을 연적·경쟁자(주의)로 전통 해석에 맞춤. 가중치는 전통 해석을 바탕으로 설계자가 정한 값이며, 실제 연애 데이터로 보정되지 않았습니다.";
 
 export type FactorCategory = "spouseStar" | "palace" | "formation" | "sustain" | "instability";
 export const CATEGORY_LABEL: Record<FactorCategory, string> = {
@@ -268,9 +268,10 @@ function evaluateLayer(ctx: ScoreContext, L: LayerInput): Contribution[] {
       }
     }
   }
-  // 복음: 운의 지지가 일지와 같음
+  // 복음: 운의 지지가 일지와 같음 — 전통적으로 복음은 길하게 보지 않는다('복음은 신음').
+  // 새 인연의 결합이 아니라 배우자 자리의 묵은 주제가 되풀이되는 것이므로 가점하지 않고 약한 주의로 둔다.
   if (L.info.branch === chart.dayBranch) {
-    push({ category: "palace", raw: 2, label: `배우자궁 복음(${BRANCHES[L.info.branch]})`, reason: "운의 지지가 일지와 같아 배우자궁의 주제가 강조됨(긍정·부정 모두 증폭)", idx: { formation: 1, instability: 0.5 } });
+    push({ category: "instability", raw: -1, label: `배우자궁 복음(${BRANCHES[L.info.branch]})`, reason: "운의 지지가 일지와 같아 배우자 자리의 묵은 고민이 다시 떠오르기 쉬움 (복음 — 새 결합이 아닌 반복)", idx: { instability: 1 } });
   }
 
   // ⑥ 관계 형성: 신살 (합계 최대 +4)
@@ -310,6 +311,8 @@ function evaluateLayer(ctx: ScoreContext, L: LayerInput): Contribution[] {
     else push({ category: "formation", raw: -1, label: `${lay} ${stemTg}`, reason: "인성 — 생각이 많아지고 신중해져 적극성이 줄 수 있음", idx: { sustain: 0.5 } });
   } else if (g === "비겁") {
     if (gender === "male" && chart.tenGodWeighted["재성"] > 0) push({ category: "instability", raw: stemTg === "겁재" ? -3 : -2, label: `${lay} ${stemTg}`, reason: "비겁이 재성을 극함(쟁재) — 경쟁자 등장, 자기 주장으로 인한 마찰", idx: { instability: 2.5 } });
+    // 여성의 비겁은 관성(남편)의 재성 — 전통적으로 겁재 운은 연적·경쟁자의 상징(남성의 쟁재와 짝을 이룸)
+    else if (gender === "female" && stemTg === "겁재" && chart.tenGodWeighted["관성"] > 0) push({ category: "instability", raw: -2, label: `${lay} ${stemTg}`, reason: "여성의 겁재는 관성(이성)의 재성 — 연적·경쟁자가 나타나기 쉬움", idx: { instability: 2, attraction: 0.5 } });
     else push({ category: "formation", raw: 1, label: `${lay} ${stemTg}`, reason: "비겁 — 친구·동료 관계에서 시작되는 인연, 대등한 관계", idx: { formation: 1 } });
   }
   // ⑦ 지속성: 정(正) 배우자성
@@ -384,7 +387,8 @@ function buildResult(ctx: ScoreContext, contribs: Contribution[], extraBonus: { 
   for (const k of Object.keys(indices) as Array<keyof Indices>) indices[k] = Math.round(indices[k] * 10) / 10;
 
   // PART 15 유형 분류 — 단순히 합/충 여부가 아니라 지표 조합으로 판단
-  const palaceEngaged = finals.some((c) => c.category === "palace" || c.label.includes("배우자궁"));
+  // 복음은 새 결합이 아니라 반복이므로 '배우자궁이 직접 작용'으로 세지 않는다
+  const palaceEngaged = finals.some((c) => c.category === "palace" || (c.label.includes("배우자궁") && !c.label.includes("복음")));
   const typeScores: Record<RelationshipType, number> = {
     A: indices.sustain * 1.2 + indices.formation * 0.5 - indices.instability * 0.6 + (palaceEngaged ? 1 : 0),
     B: indices.attraction * 0.7 + indices.instability * 0.9 + (palaceEngaged ? 0.5 : 0),
@@ -457,7 +461,7 @@ export function plainOf(c: Contribution, gender: "male" | "female"): string {
     if (/파$/.test(L)) return "약속·계획이 어긋나기 쉬움";
     if (/해$/.test(L)) return "말하지 않은 서운함이 쌓이기 쉬움";
     if (/귀문$/.test(L)) return "감정이 예민해지기 쉬움";
-    if (/비견|겁재/.test(L)) return gender === "male" ? "경쟁자 등장·자기주장 충돌 주의" : "자기주장이 강해져 부딪히기 쉬움";
+    if (/비견|겁재/.test(L)) return gender === "male" ? "경쟁자 등장·자기주장 충돌 주의" : /겁재/.test(L) ? "연적·경쟁자가 나타나기 쉬움" : "자기주장이 강해져 부딪히기 쉬움";
   }
   if (/암합/.test(L)) return "은근한 끌림, 조용히 시작되는 관계";
   if (c.category === "sustain") return /인/.test(L) ? "관계를 차분하고 안정적으로 다지는 흐름" : "오래 가는 관계에 유리";
