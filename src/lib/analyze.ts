@@ -199,7 +199,7 @@ export function analyze(input: BirthInput, opt: AnalysisOptions = DEFAULT_OPTION
     const r = y.seyun.relations.find((x) => x.involvesDayBranch && ["육합", "반합", "삼합", "방합", "충", "형", "자형", "파", "해"].includes(x.kind));
     return r ? [{ year: y.year, kind: r.kind === "자형" ? "형" : r.kind.replace(/^(육|반|삼|방)합$/, "합") }] : [];
   });
-  const love = buildLoveAnalysis(chart, input.gender, { starYears, palaceYears, hasHour: Boolean(p.hour), nearest: summary.timing.nearest ? `${summary.timing.nearest.year}년 ${summary.timing.nearest.month}월` : null, bestYears: summary.timing.bestYears.map((b) => b.year) });
+  const love = buildLoveAnalysis(chart, input.gender, { starYears, palaceYears, hasHour: Boolean(p.hour), nearest: summary.timing.nearest ? `${summary.timing.nearest.year}년 ${summary.timing.nearest.month}월` : null, nearestType: summary.timing.nearest?.type ?? null, bestYears: summary.timing.bestYears.map((b) => b.year) });
 
   const comparisons = comparePillarSettings(birth).map((r) => ({
     ziMode: r.ziMode, ziLabel: ZI_MODE_LABEL[r.ziMode], solarTime: r.solarTime, solarLabel: SOLAR_TIME_MODE_LABEL[r.solarTime], reckoning: r.reckoning,

@@ -18,7 +18,8 @@ import {
   controls, elementOfGroup, generates, mainHiddenStem, tenGodOf,
 } from "../saju/constants";
 import type { NatalChart, PillarKey } from "../saju/chart";
-import { TG_TAG, PALACE_MATCH } from "./reading";
+import { TG_TAG } from "./reading";
+import { NATURE } from "../love/summary";
 
 export type Role = "본기" | "중기" | "여기";
 
@@ -305,7 +306,7 @@ function analyzeStar(chart: NatalChart, gender: "male" | "female"): StarAnalysis
 export function buildLoveAnalysis(
   chart: NatalChart,
   gender: "male" | "female",
-  timing?: { starYears: number[]; palaceYears: Array<{ year: number; kind: string }>; hasHour: boolean; nearest?: string | null; bestYears?: number[] },
+  timing?: { starYears: number[]; palaceYears: Array<{ year: number; kind: string }>; hasHour: boolean; nearest?: string | null; nearestType?: string | null; bestYears?: number[] },
 ): LoveAnalysis {
   const palace = analyzePalace(chart, gender);
   const star = analyzeStar(chart, gender);
@@ -318,6 +319,7 @@ export function buildLoveAnalysis(
   // C. 상호작용
   const P = palace.element;
   const S = star.element;
+  const weakMe = chart.strength.score < 40;
   let rel: string;
   // 결론을 분명하게, 쉬운 말로
   if (P === S) rel = `배우자 자리와 이성의 별이 같은 ${COMMON[S]}의 기운이라, 좋아하는 마음이 그대로 연애와 결혼으로 이어지기 쉬워요!`;
@@ -331,6 +333,9 @@ export function buildLoveAnalysis(
     rel = `배우자 자리의 재치와 표현의 기운(상관)이 이성의 별(${COMMON[S]})과 부딪히는 구조(상관견관)라, 상대의 부족한 점이 잘 보이고 말로 맞서기 쉬워요. 하고 싶은 말을 한 번 다듬어 전하면 관계가 오래가요!`;
   else if (gender === "male" && (palace.tenGod === "겁재" || palace.tenGod === "비견"))
     rel = `배우자 자리의 나와 닮은 기운(${palace.tenGod})이 이성의 별(${COMMON[S]})을 누르는 구조라, 내 주관대로 관계를 이끌기 쉽고 경쟁자가 끼어들기도 쉬워요. 상대의 뜻을 먼저 물어 주면 관계가 훨씬 편안해져요!`;
+  // 나의 기운이 여리면 '나이 차'·'조언'에서 기댈 수 있는 사람을 찾는다고 말하므로, 여기서도 같은 방향으로 맞춘다
+  else if (weakMe)
+    rel = `배우자 자리(${COMMON[P]})가 이성의 별(${COMMON[S]})을 누르는 사이라, 겉으로는 내가 관계를 챙기고 이끄는 쪽이 되기 쉬워요. 하지만 속으로는 기댈 수 있는 사람을 원하니, 힘들 때는 솔직하게 기대 보세요!`;
   else rel = `배우자 자리(${COMMON[P]})가 이성의 별(${COMMON[S]})을 누르는 사이라, 내가 관계를 이끄는 쪽이 되기 쉬워요. 상대의 이야기를 충분히 들어 주면 관계가 훨씬 편안해져요!`;
   const detail: string[] = [];
   const inPalace = palace.hidden.filter((h) => h.isStar);
@@ -412,7 +417,8 @@ export function buildLoveAnalysis(
     palace.stability.level === "안정" ? "만나면 큰 부딪힘 없이 편안하게 이어질 사람이에요."
       : palace.stability.level === "흔들림 큼" ? "이사·이직처럼 환경이 바뀌는 시기에 나타나 삶에 새 바람을 불어넣을 사람일 수 있어요."
         : "가끔은 서로 맞춰 가야 하지만, 그만큼 함께 자라는 사람이에요.";
-  overview.push({ t: `배우자 자리(일지)에 ${palace.char}, 곧 ${COMMON[P]}의 기운이 있어, 닿게 될 인연은 ${PALACE_PERSON[P]} 사람이자 ${forcePerson} 사람일 가능성이 있어요. ${stabPerson} ` });
+  // 배우자 자리는 '가까이 지낼수록 드러나는 모습'으로 쓴다 — 첫인상(이성의 별)을 다루는 '만나게 될 이성' 이야기와 같은 틀
+  overview.push({ t: `배우자 자리(일지)에 ${palace.char}, 곧 ${COMMON[P]}의 기운이 있어, 닿게 될 인연은 오래 함께할수록 ${PALACE_PERSON[P]} 모습이 드러나는, ${forcePerson} 사람일 가능성이 있어요. ${stabPerson} ` });
   const starPerson =
     star.level === "많음"
       ? `사주에 이성의 별(${starName})이 여러 자리에 많아, 이성의 인연이 자주 들어오는 편이에요.${chart.strength.score < 40 ? " 나의 기운이 여린 만큼, 많은 인연 중에서도 나를 편안하게 품어 주는 사람을 골라야 오래 가요." : ""}`
@@ -430,21 +436,19 @@ export function buildLoveAnalysis(
               ? "강한 사람이어도 내가 부드럽게 관계의 중심을 잡게 되는 사이예요(식신제살)!"
               : gender === "female" && palace.tenGod === "상관"
                 ? "서로 할 말은 하는 사이가 되기 쉬워요. 말을 한 번 다듬어 전하면 오래가요(상관견관)!"
-                : "내가 이끌고 상대가 따라와 주는 사이가 되기 쉬워요. 상대의 이야기를 충분히 들어 주면 더 좋아요!";
+                : weakMe
+                  ? "겉으로는 내가 관계를 챙기는 쪽이 되기 쉽지만, 속으로는 기댈 수 있는 사이가 되면 더 좋아요!"
+                  : "내가 이끌고 상대가 따라와 주는 사이가 되기 쉬워요. 상대의 이야기를 충분히 들어 주면 더 좋아요!";
   overview.push({ t: REL_PERSON + " " });
-  if (inPalace.length) overview.push({ t: "생활 반경 안에서 자연스럽게 만나게 될 사람이기도 해요. " });
+  // '만남의 계기'와 같은 판단을 쓴다 — 배우자 자리가 흔들리면(충) 이미 '환경이 바뀌는 시기'라고 말했으므로 '생활 반경'과 겹쳐 말하지 않는다
+  if (palace.stability.level !== "흔들림 큼" && palace.hidden.some((h) => h.isStar && !h.optional)) overview.push({ t: "생활 반경 안에서 자연스럽게 만나게 될 사람이기도 해요. " });
   if (support) {
     const hasGen = support.items[0]?.includes("곳 있어요");
     overview.push({ t: hasGen ? "운이 맞는 때가 오면 이 인연이 빠르게 무르익을 수 있어요. " : "그래서 운이 들어오는 시기를 잘 잡는 것이 중요해요. " });
   }
-  if (timing && (timing.starYears.length || timing.palaceYears.some((p) => p.kind === "합" || p.kind === "충"))) {
-    const sy = timing.starYears.slice(0, 4);
-    const py = timing.palaceYears.filter((p) => p.kind === "합" || p.kind === "충").slice(0, 3);
-    // 이성의 별이 들어오면서 배우자 자리도 움직이는 해 → 배우자 자리가 크게 움직이는 해 → 이성의 별이 들어오는 해 순으로 최대 3개
-    const both = timing.starYears.filter((y) => py.some((p) => p.year === y));
-    const yrs = Array.from(new Set([...both, ...py.map((p) => p.year), ...timing.starYears])).slice(0, 3).sort((a, b) => a - b);
-    overview.push({ t: "이런 인연은 " }, { t: yrs.join("·") + "년", b: true }, { t: "에 닿기 쉬워요." });
-  }
+  // 시기는 '만나게 될 이성' 이야기·'인연이 닿기 쉬운 때'와 같은 해(연도별 인연운 상위 3개)를 쓴다 — 문단마다 다른 해가 나오지 않게
+  const yrs = [...(timing?.bestYears ?? [])].sort((a, b) => a - b);
+  if (yrs.length) overview.push({ t: "이런 인연은 " }, { t: yrs.join("·") + "년", b: true }, { t: "에 닿기 쉬워요." });
 
   return {
     starName, starExplain, palace, star,
@@ -472,23 +476,45 @@ const FIELD_BY_STAR: Record<string, string> = {
   정관: "조직·공공기관·대기업처럼 체계가 분명한 곳에서 신뢰받는 사람",
   편관: "전문직·현장 리더·위기에 강한 일처럼 책임과 결단이 필요한 일을 하는 사람",
 };
+/**
+ * '만나게 될 이성'은 한 사람을 세 면으로 나눠 그린다 — 섞어서 나열하면 "차분한데 생동감 넘치는"처럼 모순되기 쉽다.
+ *  ① 생김새: 이성의 별의 오행(ELEMENT_LOOK)   ② 풍기는 분위기: 이성의 별의 정·편(LOOK_BY_STAR)
+ *  ③ 가까워졌을 때: 배우자 자리의 계절(SEASON_LOOK)
+ * 결이 다른 조합(차분한 생김새 + 활달·강한 분위기)은 "생김새와 달리"로 이어 한 사람의 서로 다른 면으로 읽히게 한다.
+ */
+/** 바로 앞의 STAR_NATURE(성실한·활동적인·반듯한·강단 있는 성향)와 같은 낱말을 되풀이하지 않는다 */
 const LOOK_BY_STAR: Record<string, string> = {
-  정재: "단정하고 깔끔한 차림, 편안하고 성실해 보이는 인상",
-  편재: "밝고 사교적인 표정, 눈에 띄는 매력과 생동감",
-  정관: "반듯한 자세와 정돈된 스타일, 믿음직한 인상",
-  편관: "또렷하고 강단 있어 보이는 인상, 카리스마 있는 분위기",
+  정재: "편안하고 단정한 분위기",
+  편재: "밝고 사교적인 분위기",
+  정관: "깔끔하고 믿음직한 분위기",
+  편관: "선이 굵고 당당한 분위기",
 };
+/** 이성의 별(정·편)을 쉬운 말로 — '재물' 같은 말이 사람 설명에 섞이지 않게 */
+const STAR_NATURE: Record<string, string> = { 정재: "성실한 성향", 편재: "활동적인 성향", 정관: "반듯한 성향", 편관: "강단 있는 성향" };
 const COMMON: Record<Element, string> = { 木: "나무", 火: "불", 土: "흙", 金: "쇠", 水: "물" };
 const SEASON_OF: Record<Element, string> = { 木: "봄", 火: "여름", 土: "환절기", 金: "가을", 水: "겨울" };
+/** 가까워졌을 때 보이는 모습 — 첫인상 표현(LOOK_SHORT)과 같은 낱말이 겹치지 않게 고른다 */
 const SEASON_LOOK: Record<string, string> = {
-  봄: "풋풋하고 생기 있는", 여름: "밝고 활발한", 환절기: "푸근하고 안정감 있는", 가을: "깔끔하고 세련된", 겨울: "차분하고 지적인",
+  봄: "풋풋하고 생기 있는", 여름: "다정하고 활발한", 환절기: "푸근하고 안정감 있는", 가을: "깔끔하고 단정한", 겨울: "속이 깊고 지적인",
 };
+/** 생김새 */
 const ELEMENT_LOOK: Record<Element, string> = {
-  木: "길쭉하고 곧은 실루엣, 싱그러운 분위기",
-  火: "밝고 화사한 얼굴, 표정이 풍부한 분위기",
-  土: "듬직하고 편안한 체격, 믿음이 가는 분위기",
-  金: "또렷한 이목구비, 깔끔하고 세련된 분위기",
-  水: "부드럽고 깊은 눈빛, 차분하고 지적인 분위기",
+  木: "길쭉하고 곧은 실루엣",
+  火: "밝고 화사한 얼굴",
+  土: "듬직하고 편안한 체격",
+  金: "또렷한 이목구비와 반듯한 선",
+  水: "부드럽고 깊은 눈빛",
+};
+/** 표현의 결: 차분함 / 활달함 / 또렷함 — 이어 쓸 때 '~에 ~까지'로 쌓을지 '~와 달리'로 대비할지 정한다 */
+type Tone = "calm" | "lively" | "sharp";
+const ELEMENT_TONE: Record<Element, Tone> = { 木: "lively", 火: "lively", 土: "calm", 金: "sharp", 水: "calm" };
+const STAR_TONE: Record<string, Tone> = { 정재: "calm", 편재: "lively", 정관: "calm", 편관: "sharp" };
+const SEASON_TONE: Record<string, Tone> = { 봄: "lively", 여름: "lively", 환절기: "calm", 가을: "calm", 겨울: "calm" };
+/** 배우자 자리의 십신 — 사람의 성격이 아니라 '둘이 함께할 때의 관계 분위기'로 쓴다 (판단의 한계 문구와 같은 관점) */
+const PALACE_MOOD: Record<TenGod, string> = {
+  비견: "친구처럼 편하고 대등한", 겁재: "서로 자극을 주고받는 활기찬", 식신: "맛있는 걸 함께 먹으며 여유를 즐기는 편안한",
+  상관: "대화가 끊이지 않는 재미있는", 편재: "함께 여기저기 다니며 즐기는 활동적인", 정재: "생활을 함께 꾸려 가는 알뜰하고 안정적인",
+  편관: "상대가 든든하게 이끌어 주는", 정관: "약속과 예의를 지키는 반듯한", 편인: "취향과 생각을 깊이 나누는", 정인: "서로 챙겨 주고 이해해 주는 다정한",
 };
 const PERSONA_BY_STAR: Record<string, string> = {
   정재: "현실적이고 성실하며, 약속과 생활을 꼼꼼히 챙기는 사람",
@@ -512,7 +538,7 @@ function inferPartner(
   gender: "male" | "female",
   palace: PalaceAnalysis,
   star: StarAnalysis,
-  timing?: { nearest?: string | null; bestYears?: number[] },
+  timing?: { nearest?: string | null; nearestType?: string | null; bestYears?: number[] },
 ): { intro: string; story: Array<{ t: string; b?: boolean }>; storyText: string; items: PartnerItem[] } {
   const jeong: TenGod = gender === "male" ? "정재" : "정관";
   const pyeon: TenGod = gender === "male" ? "편재" : "편관";
@@ -528,20 +554,34 @@ function inferPartner(
     ? `이성의 별 ${main}, ${ELEMENT_KO[S]}(${S}) 기운${both ? `, ${main === jeong ? pyeon : jeong}도 함께 있음` : ""}`
     : `원국에 이성의 별이 드러나지 않아 이성의 별 오행(${elName(S)})과 배우자 자리로 추론`;
 
+  const other: TenGod = main === jeong ? pyeon : jeong;
+  // 차분한 생김새(土·水)에 활달하거나 강한 분위기(편재·편관)가 겹치면 대비로 잇는다
+  const lookClash = ELEMENT_TONE[S] === "calm" && STAR_TONE[main] !== "calm";
+  // 가까워졌을 때의 모습이 첫인상(풍기는 분위기)과 같은 결이면 '더 잘 보여요', 다르면 '면도 보여요'
+  const closeSame = SEASON_TONE[season] === STAR_TONE[main];
+  const closeText = closeSame
+    ? `배우자 자리가 ${season}의 기운이라, 가까워질수록 ${SEASON_LOOK[season]} 면이 더 잘 보여요.`
+    : `배우자 자리가 ${season}의 기운이라, 가까워지면 ${SEASON_LOOK[season]} 면도 보여요.`;
   const items: PartnerItem[] = [
     {
       title: "외모·분위기",
-      text: `사주에서 이성의 별이 ${ELEMENT_KO[S]}(${COMMON[S]})의 기운이라, ${ELEMENT_LOOK[S]}에 ${LOOK_BY_STAR[main]}의 사람일 가능성이 커요! 배우자 자리가 ${season}의 기운이라 전체적으로는 ${SEASON_LOOK[season]} 느낌이에요.`,
+      text:
+        `사주에서 이성의 별이 ${ELEMENT_KO[S]}(${COMMON[S]})의 기운이라, 생김새는 ${ELEMENT_LOOK[S]}이(가) 돋보일 가능성이 커요! ` +
+        (lookClash
+          ? `다만 이성의 별이 ${STAR_NATURE[main]}(${main})이라, 생김새와 달리 막상 만나 보면 ${LOOK_BY_STAR[main]}를 풍기는 사람이에요. `
+          : `여기에 이성의 별이 ${STAR_NATURE[main]}(${main})이라 ${LOOK_BY_STAR[main]}까지 갖춘 사람이에요. `) +
+        closeText,
       basis: `${starBasis} · 배우자 자리 ${palace.char}, ${ELEMENT_KO[P]}(${P})·${season}의 기운`,
     },
     {
       title: "성격",
-      text: `사주에 ${TEN_GOD_PLAIN[main]}의 기운(${main})이 이성의 별로 있어, ${PERSONA_BY_STAR[main]}일 가능성이 커요!${both ? ` ${TEN_GOD_PLAIN[main === jeong ? pyeon : jeong]}의 기운도 함께 있어 ${PERSONA_BY_STAR[main === jeong ? pyeon : jeong].replace(/사람$/, "면")}도 보일 수 있어요.` : ""} 그리고 배우자 자리(일지)에 ${TG_TAG[palace.tenGod]}이(가) 있어 ${PALACE_MATCH[palace.tenGod]}`,
+      text: `이성의 별이 ${STAR_NATURE[main]}(${main})이라, ${PERSONA_BY_STAR[main]}일 가능성이 커요!${both ? ` ${STAR_NATURE[other]}(${other})도 함께 있어 때로는 ${PERSONA_BY_STAR[other].replace(/사람$/, "면")}도 보일 수 있어요.` : ""} 그리고 배우자 자리(일지)에 ${TG_TAG[palace.tenGod]}이(가) 있어, 둘이 함께할 때는 ${PALACE_MOOD[palace.tenGod]} 관계가 되기 쉬워요.`,
       basis: `${starBasis} · 배우자 자리의 기운 ${palace.tenGod}(${TEN_GOD_PLAIN[palace.tenGod]})`,
     },
     {
       title: "하는 일의 결",
-      text: `이성의 별이 ${TEN_GOD_PLAIN[main]}의 기운이라 ${FIELD_BY_STAR[main]}일 가능성이 커요! ${ELEMENT_KO[S]}(${COMMON[S]})의 기운이라 그중에서도 ${FIELD_BY_ELEMENT[S]}와 인연이 닿기 쉬워요.`,
+      // 분야는 이름만 든다 — 분야 설명("넓게 움직이는")이 일하는 방식("체계가 분명한 곳")과 부딪히지 않게
+      text: `이성의 별이 ${STAR_NATURE[main]}(${main})이라 ${FIELD_BY_STAR[main]}일 가능성이 커요! 분야로는 ${FIELD_BY_ELEMENT[S].split("처럼")[0]} 같은 쪽에서 일하고 있을 수 있어요.`,
       basis: `${starBasis}`,
     },
   ];
@@ -566,38 +606,58 @@ function inferPartner(
     text: meet,
     basis: palace.stability.level === "흔들림 큼" ? "배우자 자리에 충(변화의 기운)" : inPalace ? "배우자 자리 속에 이성의 별" : inMonth ? "월주(사회 활동의 자리)에 이성의 별" : "배우자 자리·이성의 별 위치",
   });
+  // 맨 위 '가장 빠른 시기'에 붙는 인연의 성격(진중/지켜볼/스쳐 갈)과 같은 말을 쓴다
+  const nearestNature = timing?.nearestType ? NATURE[timing.nearestType] : undefined;
   if (timing?.nearest || timing?.bestYears?.length) {
     items.push({
       title: "인연이 닿기 쉬운 때",
-      text: `가까이는 ${timing?.nearest ?? "-"}, 10년 중에서는 ${[...(timing?.bestYears ?? [])].sort((a, b) => a - b).map((y) => `${y}년`).join("·")}에 인연의 흐름이 가장 좋아요. 아래 '연도별·월별 인연운'에서 자세히 볼 수 있어요.`,
+      text: `가까이는 ${timing?.nearest ?? "-"}${nearestNature ? `(${nearestNature.label})` : ""}, 10년 중에서는 ${[...(timing?.bestYears ?? [])].sort((a, b) => a - b).map((y) => `${y}년`).join("·")}에 인연의 흐름이 가장 좋아요. 아래 '연도별·월별 인연운'에서 자세히 볼 수 있어요.`,
       basis: "운(세운·월운)에서 이성의 별이 들어오거나 배우자 자리가 움직이는 시기",
     });
   }
   // ── 한 문단 이야기 (항목들을 자연스럽게 이어 붙임) ──
-  const other: TenGod = main === jeong ? pyeon : jeong;
   const LOOK_SHORT: Record<Element, string> = { 木: "길쭉하고 싱그러운", 火: "밝고 화사한", 土: "듬직하고 편안한", 金: "또렷하고 세련된", 水: "부드럽고 차분한" };
   const LOOK_STAR_SHORT: Record<string, string> = { 정재: "단정하고 성실해 보이는 인상", 편재: "사교적이고 눈에 띄는 인상", 정관: "반듯하고 믿음직한 인상", 편관: "강단 있고 선이 분명한 인상" };
+  /** 생김새와 결이 다를 때, 말을 나눠 보면 드러나는 분위기 */
+  // 바로 다음 문장(PERSONA_S)과 같은 낱말이 되풀이되지 않게 고른다
+  const STAR_TALK: Record<string, string> = { 정재: "단정하고 성실한", 편재: "유쾌하고 거침없는", 정관: "반듯하고 믿음직한", 편관: "강단 있고 선이 분명한" };
   const PERSONA_S: Record<string, string> = {
     정재: "현실적이고 성실해서 생활을 꼼꼼히 챙기는", 편재: "시원시원하고 사교적이라 곁에 있으면 활기가 도는",
     정관: "예의 바르고 책임감이 강해 원칙을 지키는", 편관: "추진력과 카리스마가 있어 위기에 든든한",
   };
-  const WORK_S: Record<string, string> = { 정재: "안정적인 곳에서 꾸준히 실력을 쌓는", 편재: "활동 반경이 넓은 일을 하는", 정관: "체계가 분명한 조직에서 신뢰받는", 편관: "책임과 결단이 필요한 일을 맡는" };
+  const WORK_S: Record<string, string> = { 정재: "꾸준히 실력을 쌓아 온", 편재: "활동 반경이 넓은", 정관: "조직 안에서 신뢰받는", 편관: "책임과 결단이 필요한 자리를 맡는" };
   const FIELD_S: Record<Element, string> = { 木: "교육·출판·디자인", 火: "미디어·IT·뷰티", 土: "부동산·공공기관·관리", 金: "금융·법률·기술", 水: "무역·연구·상담" };
   const MEET_S =
     palace.stability.level === "흔들림 큼" ? "이사·이직처럼 환경이 바뀌는 시기에 새로 만나" : inPalace ? "처음엔 생활 반경 안에서 편한 사이로 시작해" : inMonth ? "직장·학교·모임처럼 함께 활동하는 자리에서 만나" : "소개나 새로운 모임에서 만나";
   const years = [...(timing?.bestYears ?? [])].sort((a, b) => a - b);
+  // 첫인상(생김새 + 풍기는 분위기) → 가까워졌을 때의 모습(배우자 자리) 순으로, 한 사람의 서로 다른 면으로 읽히게 한다
+  // 대비는 한 문장에 한 번만: 생김새와 분위기가 엇갈리면 그 대비를 쓰고, 가까워졌을 때는 '면도/더 잘' 로만 잇는다
+  const closeTail = closeSame ? `가까워질수록 ${SEASON_LOOK[season]} 면이 더 잘 보이는 사람이에요. ` : `가까워지면 ${SEASON_LOOK[season]} 면도 보이는 사람이에요. `;
+  const firstSentence = lookClash
+    ? `첫인상은 ${LOOK_SHORT[S]} 생김새와 달리 ${STAR_TALK[main]} 느낌이 강하고, ${closeTail}`
+    : closeSame
+      ? `첫인상은 ${LOOK_STAR_SHORT[main]}에 ${LOOK_SHORT[S]} 느낌이고, ${closeTail}`
+      : `첫인상은 ${LOOK_STAR_SHORT[main]}에 ${LOOK_SHORT[S]} 느낌이지만, ${closeTail}`;
   const story: Array<{ t: string; b?: boolean }> = [
-    // 첫인상(이성의 별) → 가까워졌을 때의 모습(배우자 자리) 순으로 이어, 한 사람의 서로 다른 면으로 읽히게 한다
-    { t: `첫인상은 ${LOOK_STAR_SHORT[main]}에 ${LOOK_SHORT[S]} 느낌이지만, 가까워지면 ${SEASON_LOOK[season]} 면이 보이는 사람이에요. ` },
+    { t: firstSentence },
     { t: `${PERSONA_S[main]} 사람이고${both ? `, 때로는 ${PERSONA_S[other]} 면도 함께 보여요` : "요"}. `.replace("사람이고요", "사람이에요") },
     { t: age.short.startsWith("나이 차") ? "" : "나이는 " }, { t: age.short, b: true }, { t: "일 가능성이 커요. " },
-    { t: `${FIELD_S[S]} 같은 분야에서 ${WORK_S[main]} 사람일 가능성이 커요. ` },
+    { t: `${FIELD_S[S]} 같은 분야에서 일하며 ${WORK_S[main]} 사람일 수 있어요. ` },
     { t: `${MEET_S}, ` },
   ];
   if (timing?.nearest || years.length) {
-    if (timing?.nearest) story.push({ t: `${timing.nearest}`, b: true }, { t: years.length ? " 즈음이나 " : " 즈음에 " });
-    if (years.length) story.push({ t: years.map((y) => `${y}`).join("·") + "년", b: true }, { t: "에 " });
-    story.push({ t: "인연이 깊어지기 쉬워요." });
+    const yearsPart = years.length ? [{ t: years.map((y) => `${y}`).join("·") + "년", b: true }] : [];
+    if (timing?.nearest && timing.nearestType === "C") {
+      // 맨 위에 '스쳐 지나가기 쉬운 인연'이라고 했으니, 그 달을 '깊어지는 때'로 묶지 않는다
+      story.push({ t: `${timing.nearest}`, b: true }, { t: " 즈음에는 가벼운 인연이 스쳐 갈 수 있고, " });
+      story.push(...(yearsPart.length ? [...yearsPart, { t: "에 진지한 인연이 깊어지기 쉬워요." }] : [{ t: "그다음에 오는 진지한 인연이 깊어지기 쉬워요." }]));
+    } else if (timing?.nearest && timing.nearestType === "B") {
+      story.push({ t: `${timing.nearest}`, b: true }, { t: " 즈음에 설레는 인연이 찾아오고, " });
+      story.push(...(yearsPart.length ? [...yearsPart, { t: "에 인연이 깊어지기 쉬워요." }] : [{ t: "천천히 알아 가면 인연이 깊어지기 쉬워요." }]));
+    } else {
+      if (timing?.nearest) story.push({ t: `${timing.nearest}`, b: true }, { t: years.length ? " 즈음이나 " : " 즈음에 " });
+      story.push(...yearsPart, { t: years.length ? "에 인연이 깊어지기 쉬워요." : "인연이 깊어지기 쉬워요." });
+    }
   } else story.push({ t: "천천히 인연이 깊어지기 쉬워요." });
 
   return {
@@ -656,7 +716,9 @@ export function inferAge(
   const order = (Object.keys(s) as Array<keyof typeof s>).sort((a, b) => s[b] - s[a]);
   const top = order[0];
   const second = order[1];
-  const LABEL = { older: "연상", same: "동갑이나 한두 살 차이", younger: "연하" } as const;
+  // 혼자 쓸 때는 자세히("동갑이나 한두 살 차이"), 둘을 이을 때는 짧게("연상이거나 또래") — "연상이거나 동갑이나 …" 같은 겹침 방지
+  const LABEL = { older: "연상", same: "또래", younger: "연하" } as const;
+  const LABEL_ALONE = { older: "연상", same: "동갑이나 한두 살 차이", younger: "연하" } as const;
   const close = s[top] - s[second] < 0.6 && s[second] > 0;
   const gapBig = (main === "편관" || main === "편재") && (byPillar.year > 0.5 || byPillar.hour > 0.5) && top !== "same";
   const opposite = close && ((top === "older" && second === "younger") || (top === "younger" && second === "older"));
@@ -664,7 +726,7 @@ export function inferAge(
     s[top] === 0 ? "비슷한 또래"
       : opposite ? `나이 차가 있는 사람(${LABEL[top]} 쪽이 조금 더 유력)`
         : close ? `${LABEL[top]}이거나 ${LABEL[second]}`
-          : LABEL[top];
+          : LABEL_ALONE[top];
   const reasons = why[top].sort((a, b) => b[0] - a[0]).slice(0, 2).map((x) => x[1]);
   const text = s[top] === 0
     ? "사주에 나이를 가늠할 뚜렷한 단서가 적어, 비슷한 또래와 인연이 닿을 가능성이 커요!"

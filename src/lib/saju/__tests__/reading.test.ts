@@ -131,7 +131,8 @@ describe("핵심 원칙 (지침 9장)", () => {
     expect(r.love.overviewText).toMatch(/사람일 가능성이 있어요/);
     // 한 문단 이야기: 외모·성격·일·만남·시기가 모두 이어져 있고, 시기는 강조 표시
     const story = r.love.partner.storyText;
-    expect(story).toMatch(/^첫인상은 .+이지만, 가까워지면 .+ 면이 보이는 사람이에요/);
+    // 첫인상 → 가까워졌을 때 순서. 결이 같으면 '더 잘 보이는', 다르면 '면도 보이는'으로 잇는다
+    expect(story).toMatch(/^첫인상은 .+, 가까워(지면|질수록) .+ 면(도|이 더 잘) 보이는 사람이에요/);
     expect(story).toContain("가능성이 커요");
     expect(story).toContain("인연이 깊어지기 쉬워요");
     expect(r.love.partner.story.some((s) => s.b && /\d{4}/.test(s.t))).toBe(true);
@@ -198,5 +199,57 @@ describe("일간·오행에 따라 해석이 달라진다", () => {
   });
   it("1994-10-03 14:20 서울(지방평균태양시) = 甲戌 癸酉 壬戌 丁未", () => {
     expect([a.pillarText.year, a.pillarText.month, a.pillarText.day, a.pillarText.hour]).toEqual(["甲戌", "癸酉", "壬戌", "丁未"]);
+  });
+});
+
+/**
+ * 결과 화면 문장끼리 서로 어긋나지 않는지 — 여러 표의 문장을 이어 붙이다 생기던 모순을 막는다
+ * (예: '차분한 분위기에 생동감 넘치는', 문단마다 다른 인연의 해, '스쳐 갈 인연'인 달을 '깊어지는 때'로 묶기)
+ */
+describe("결과 문장의 일관성", () => {
+  // 10개 일간 × 남녀가 고루 나오도록 날짜를 흩뿌린다
+  const cases = Array.from({ length: 40 }, (_, i) => ({
+    gender: (i % 2 ? "male" : "female") as "male" | "female",
+    year: 1975 + ((i * 7) % 30), month: 1 + ((i * 5) % 12), day: 1 + ((i * 11) % 28), hour: (i * 13) % 24, minute: 30,
+  }));
+  const results = cases.map((c) => analyze({ calendar: "solar", location: SEOUL, ...c }, undefined, NOW));
+
+  it("화면 문장에 조사 미처리·합쇼체 혼용·문장 조각이 없다", () => {
+    for (const r of results) {
+      const texts = [
+        ...r.reading.personality.map((x) => x.text), ...r.reading.loveStyle.map((x) => x.text),
+        ...r.love.partner.items.map((x) => x.text), r.love.partner.storyText, r.love.overviewText, ...r.summary.style.advice,
+        ...r.years.flatMap((y) => y.months.flatMap((m) => m.score.advice)),
+      ];
+      for (const t of texts) {
+        expect(t, t).not.toMatch(/이\(가\)|을\(를\)|은\(는\)|와\(과\)|이\(라\)/);
+        expect(t, t).not.toMatch(/합니다|입니다|습니다|됩니다/);
+        expect(t, t).not.toMatch(/음 경향|분위기[^.!]{0,12}분위기/);
+      }
+    }
+  });
+
+  it("'만나게 될 이성'과 '배우자 자리' 문단이 같은 해·같은 만남의 계기를 말한다", () => {
+    for (const r of results) {
+      const yrs = (s: string) => s.match(/(\d{4}(?:·\d{4})*)년에 (?:닿기|진지한|인연이)/g)?.pop()?.replace(/년.*/, "");
+      const a = yrs(r.love.overviewText), b = yrs(r.love.partner.storyText);
+      if (a && b) expect(a).toBe(b);
+      expect(/생활 반경/.test(r.love.overviewText) && /이사·이직/.test(r.love.overviewText), r.love.overviewText).toBe(false);
+    }
+  });
+
+  it("맨 위 '스쳐 지나가기 쉬운 인연'인 달을 이야기에서 '깊어지는 때'로 묶지 않는다", () => {
+    for (const r of results) {
+      if (r.summary.timing.nearest?.type === "C") expect(r.love.partner.storyText).not.toContain("즈음이나");
+    }
+  });
+
+  it("월별 카드에 서로 반대인 흐름·만남을 나란히 쓰지 않는다", () => {
+    for (const r of results) for (const y of r.years) for (const m of y.months) {
+      const g = m.score.goodPlain.join("|");
+      expect(/강하게 끌리는/.test(g) && /은근한|드러나지 않게/.test(g), g).toBe(false);
+      const p = m.score.partnerTraits.join("|");
+      expect(/이동|환경 변화/.test(p) && /생활 속에서|지인 소개/.test(p), p).toBe(false);
+    }
   });
 });

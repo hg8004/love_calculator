@@ -404,7 +404,7 @@ function buildResult(ctx: ScoreContext, contribs: Contribution[], extraBonus: { 
   const advice = adviceOf(type, indices);
   // 일반 사용자용 쉬운 설명 (명리 용어 없이)
   const uniq = (xs: string[]) => Array.from(new Set(xs.filter(Boolean)));
-  const goodPlain = uniq(finals.filter((c) => c.delta >= 0.5 && c.label !== "월운 집중도").sort((a, b) => b.delta - a.delta).map((c) => plainOf(c, ctx.gender))).slice(0, 3);
+  const goodPlain = dropClashing(uniq(finals.filter((c) => c.delta >= 0.5 && c.label !== "월운 집중도").sort((a, b) => b.delta - a.delta).map((c) => plainOf(c, ctx.gender)))).slice(0, 3);
   const cautionPlain = uniq(finals.filter((c) => c.delta <= -0.5).sort((a, b) => a.delta - b.delta).map((c) => plainOf(c, ctx.gender))).slice(0, 2);
   const headline = headlineOf(score, goodPlain, cautionPlain);
 
@@ -472,12 +472,31 @@ export function plainOf(c: Contribution, gender: "male" | "female"): string {
   return c.reason.split(/[—·(]/)[0].trim();
 }
 
+/**
+ * 같은 칸(좋은 흐름)에 나란히 놓이면 서로 부정하는 표현 — 강한 끌림과 '은근한·드러나지 않는' 시작은 함께 쓰지 않는다.
+ * 앞(점수 기여가 큰 것)을 남기고 뒤의 반대 표현을 뺀다.
+ */
+const CLASH_GROUPS: string[][] = [
+  ["강하게 끌리는 인연의 기운이 들어옴", "매력이 돋보여 이성의 관심을 받기 쉬움", "이유 없이 끌리는 만남"],
+  ["은근한 끌림, 조용히 시작되는 관계", "드러나지 않게 다가오는 인연의 기운"],
+];
+function dropClashing(xs: string[]): string[] {
+  const groupOf = (x: string) => CLASH_GROUPS.findIndex((g) => g.includes(x));
+  const kept: string[] = [];
+  for (const x of xs) {
+    const g = groupOf(x);
+    if (g >= 0 && kept.some((k) => groupOf(k) >= 0 && groupOf(k) !== g)) continue;
+    kept.push(x);
+  }
+  return kept;
+}
+
 function headlineOf(score: number, good: string[], bad: string[]): string {
   const g = good.slice(0, 2).join(", ");
   const b = bad[0];
   if (score >= 68) return `인연 신호가 뚜렷한 시기 — ${g || "관계 형성에 유리한 흐름"}${b ? ` (다만 ${b})` : ""}`;
   if (score >= 58) return `인연의 흐름이 있는 시기 — ${g || "새로운 만남이 가능한 흐름"}${b ? ` (다만 ${b})` : ""}`;
-  if (score >= 48) return `평범한 시기 — ${g ? `${g} 정도의 작은 계기` : "큰 변화 없이 잔잔한 흐름"}`;
+  if (score >= 48) return `평범한 시기 — ${good[0] ? `작은 계기: ${good[0]}` : "큰 변화 없이 잔잔한 흐름"}`;
   return `조용한 시기 — ${b ? `${b}. ` : ""}자기 시간에 집중하기 좋음`;
 }
 
@@ -510,22 +529,33 @@ function typeReasonsOf(type: RelationshipType, i: Indices, finals: Contribution[
 function partnerTraitsOf(ctx: ScoreContext, finals: Contribution[]): string[] {
   const traits: string[] = [];
   const tgs = finals.map((c) => c.label.match(/(정재|편재|정관|편관|식신|상관|비견|겁재|편인|정인)/)?.[1]).filter(Boolean) as TenGod[];
-  for (const tg of Array.from(new Set(tgs)).slice(0, 2)) traits.push(TEN_GOD_INFO[tg].partnerType);
-  if (finals.some((c) => c.label.includes("충") && c.category === "formation")) traits.push("기존에 만나던 유형과 다른 사람, 또는 이동·환경 변화 중에 만나는 사람");
-  if (finals.some((c) => c.label.includes("합") && c.category === "palace")) traits.push("정이 깊고 생활 속에서 자연스럽게 가까워지는 사람");
+  // 사람의 모습은 그 달에 가장 크게 작용한 기운 하나로만 그린다 — 두 유형을 나란히 쓰면 "반듯한 사람 / 카리스마 있는 사람"처럼 한 사람으로 읽히지 않는다
+  for (const tg of Array.from(new Set(tgs)).slice(0, 1)) traits.push(TEN_GOD_INFO[tg].partnerType);
+  // 만남의 계기는 '이동·변화'와 '생활 속·주변'이 서로 반대라, 점수 기여가 더 큰 쪽만 쓴다
+  const sum = (pred: (c: Contribution) => boolean) => finals.filter(pred).reduce((a, c) => a + Math.abs(c.delta), 0);
+  const isMove = (c: Contribution) => (c.label.includes("충") && c.category === "formation") || c.label.includes("역마");
+  const isNear = (c: Contribution) => (c.label.includes("합") && c.category === "palace") || c.label.includes("천을귀인");
+  const moveWins = sum(isMove) >= sum(isNear);
+  if (moveWins || !finals.some(isNear)) {
+    if (finals.some((c) => c.label.includes("충") && c.category === "formation")) traits.push("기존에 만나던 유형과 다른 사람, 또는 이동·환경 변화 중에 만나는 사람");
+    else if (finals.some((c) => c.label.includes("역마"))) traits.push("여행·출장·이사 등 이동 중에 만나는 사람");
+  }
+  if (!moveWins || !finals.some(isMove)) {
+    if (finals.some((c) => c.label.includes("합") && c.category === "palace")) traits.push("정이 깊고 생활 속에서 자연스럽게 가까워지는 사람");
+    if (finals.some((c) => c.label.includes("천을귀인"))) traits.push("지인 소개나 도움을 주고받는 관계에서 만나는 사람");
+  }
   if (finals.some((c) => c.label.includes("도화"))) traits.push("외적 매력이 뚜렷하고 첫인상이 강한 사람");
-  if (finals.some((c) => c.label.includes("천을귀인"))) traits.push("지인 소개나 도움을 주고받는 관계에서 만나는 사람");
-  if (finals.some((c) => c.label.includes("역마"))) traits.push("여행·출장·이사 등 이동 중에 만나는 사람");
   if (!traits.length) traits.push(ctx.gender === "male" ? "일상 속에서 편안하게 대화가 통하는 사람" : "일상 속에서 신뢰를 쌓아 가는 사람");
   return Array.from(new Set(traits)).slice(0, 4);
 }
 
 function adviceOf(type: RelationshipType, i: Indices): string[] {
   const a: string[] = [];
-  if (type === "A") a.push("상대의 가치관·생활 습관·책임감을 대화로 차분히 확인하세요.", "관계의 속도를 서로 맞추면 안정적으로 발전하기 쉬운 시기입니다.");
-  if (type === "B") a.push("강한 끌림이 있어도 결정을 서두르지 마세요.", "갈등이 생겼을 때 대화 방식과 회복 과정을 관찰해 보세요.");
-  if (type === "C") a.push("즐거운 만남을 누리되 기대치를 조절하세요.", "관계를 이어가고 싶다면 서로의 진지함을 명확히 확인하세요.");
-  if (i.instability >= 6) a.push("감정이 크게 흔들릴 수 있는 시기이므로 중요한 결정은 한 박자 늦추는 것이 좋습니다.");
+  // 결과 화면의 다른 문장과 같은 해요체로
+  if (type === "A") a.push("상대의 가치관·생활 습관·책임감을 대화로 차분히 확인해 보세요.", "관계의 속도를 서로 맞추면 안정적으로 발전하기 쉬운 시기예요.");
+  if (type === "B") a.push("강한 끌림이 있어도 결정을 서두르지 마세요.", "갈등이 생겼을 때 서로 어떻게 대화하고 회복하는지 지켜보세요.");
+  if (type === "C") a.push("즐거운 만남을 누리되 기대는 조금 내려놓으세요.", "관계를 이어 가고 싶다면 서로 얼마나 진지한지 분명히 확인해 보세요.");
+  if (i.instability >= 6) a.push("감정이 크게 흔들릴 수 있는 시기라, 중요한 결정은 한 박자 늦추는 게 좋아요.");
   return a;
 }
 

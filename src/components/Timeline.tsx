@@ -9,10 +9,11 @@ import { Card, CopyButton, EvidenceView } from "./ui";
 type Year = AnalysisDTO["years"][number];
 type Month = Year["months"][number];
 
+/** 맨 위 '가장 빠른 시기'(love/summary.ts NATURE)와 같은 이름 — 같은 유형이 화면마다 다른 말로 나오지 않게 */
 export const TYPE_SHORT: Record<string, string> = {
-  A: "진지하게 만나볼 만한 인연",
-  B: "끌림은 강하지만 지켜볼 인연",
-  C: "가볍게 시작될 수 있는 인연",
+  A: "진중하게 만나 봐도 좋은 인연",
+  B: "끌림은 크지만 지켜볼 인연",
+  C: "스쳐 지나가기 쉬운 인연",
 };
 
 /** 점수 대신 보여 줄 대략적인 가능성 표현 */

@@ -10,6 +10,7 @@ import ExpertView from "@/components/ExpertView";
 import PromptPanel from "@/components/PromptPanel";
 import HistoryList from "@/components/HistoryList";
 import { HEART_PATH } from "@/components/FloatingHearts";
+import { CARD_FRAME, SECTION_TITLE } from "@/components/ui";
 import type { AnalysisDTO } from "@/lib/serialize";
 import { HistoryEntry, clearHistory, loadHistory, removeHistory, saveHistory } from "@/lib/history";
 import { CITIES } from "@/lib/geo/cities";
@@ -258,12 +259,12 @@ export default function Home() {
 
       {stage === "result" && result && lastRequest && (
         <main className="mx-auto grid max-w-2xl gap-5 px-4 py-6 sm:py-8">
-          <section className="fade-up rounded-2xl border border-line bg-sheet/95 p-5 sm:p-6">
+          <section className={`fade-up ${CARD_FRAME} p-5 sm:p-6`}>
             <p className="text-sm text-sub">
               {result.input.calendar === "solar" ? "양력" : `음력${result.input.isLeapMonth ? "(윤달)" : ""}`} {result.input.year}.{result.input.month}.{result.input.day}
               {result.time.known ? ` ${String(result.input.hour).padStart(2, "0")}:${String(result.input.minute).padStart(2, "0")}` : " · 시간 모름"} · {result.input.gender === "male" ? "남성" : "여성"} · {result.input.location.city}
             </p>
-            <h1 className="mt-1 font-serif text-3xl font-extrabold text-brand">{form.name ? `${form.name}님의 사주` : "나의 사주"}</h1>
+            <h1 className={`mt-1 ${SECTION_TITLE}`}>{form.name ? `${form.name}님의 사주` : "나의 사주"}</h1>
             {result.summary.timing.nearest && (
               <button type="button" onClick={() => document.getElementById("timeline")?.scrollIntoView({ behavior: "smooth" })} className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl bg-brand px-4 py-3 text-left text-white">
                 <span>
@@ -296,9 +297,9 @@ export default function Home() {
           <ShareCard r={result} name={form.name} />
           <PromptPanel r={result} request={lastRequest} aiAvailable={aiAvailable} conditions={conditions} setConditions={setConditions} />
 
-          <details className="rounded-2xl border border-line bg-sheet/95">
-            <summary className="cursor-pointer list-none p-5">
-              <span className="font-serif text-lg font-bold text-brand">계산 근거 보기</span>
+          <details className={CARD_FRAME}>
+            <summary className="cursor-pointer list-none p-5 sm:p-6">
+              <span className={SECTION_TITLE}>계산 근거 보기</span>
               <span className="mt-0.5 block text-xs text-sub">지장간·신살·합충·대운·계산 기준 (사주를 아는 분을 위한 상세)</span>
             </summary>
             <div className="border-t border-line p-3 sm:p-4"><ExpertView r={result} /></div>

@@ -5,7 +5,7 @@ import { BEGINNER_GUIDE } from "@/lib/reading/knowledge";
 import { TEN_GOD_PLAIN } from "@/lib/reading/love";
 import { ELEMENT_KO, type TenGod } from "@/lib/saju/constants";
 import { fixJosa } from "@/lib/josa";
-import { Card } from "./ui";
+import { CARD_FRAME, Card, SECTION_TITLE } from "./ui";
 
 type Item = { title: string; text: string; basis?: string };
 
@@ -26,9 +26,9 @@ function Items({ items }: { items: Item[] }) {
 /** 사주가 처음인 사람을 위한 짧은 안내 */
 export function BeginnerGuide() {
   return (
-    <details className="rounded-2xl border border-line bg-sheet/95 p-5">
+    <details className={`${CARD_FRAME} p-5 sm:p-6`}>
       <summary className="cursor-pointer list-none">
-        <span className="font-serif text-lg font-bold text-brand">사주가 처음이라면</span>
+        <span className={SECTION_TITLE}>사주가 처음이라면</span>
         <span className="ml-2 text-sm text-sub">1분 안에 읽는 법 보기 ▾</span>
       </summary>
       <dl className="mt-4 grid gap-3 text-sm leading-relaxed">

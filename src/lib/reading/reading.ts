@@ -74,24 +74,31 @@ export function buildReading(chart: NatalChart, gender: "male" | "female"): Read
   // ── 성격 ──
   const groups: TenGodGroup[] = ["비겁", "식상", "재성", "관성", "인성"];
   const topGroup = [...groups].sort((a, b) => w[b] - w[a])[0];
+  // 일간의 대인관계 문장 뒤에 이어 붙이므로, 어떤 일간과 만나도 서로 부정하지 않는 '보탬' 문장으로 쓴다
+  // (예: 丁 '소수와 깊은 관계' + 재성 '사람을 폭넓게 사귀고'처럼 정반대가 되지 않게)
   const groupSocial: Record<TenGodGroup, string> = {
-    비겁: "친구처럼 대등한 관계를 좋아하고, 간섭받는 것은 싫어해요.",
-    식상: "대화를 이끌고 분위기를 만드는 데 능해요.",
-    재성: "사람을 폭넓게 사귀고 실질적인 도움을 주고받아요.",
-    관성: "예의와 약속을 중요하게 여겨 믿음직하다는 말을 들어요.",
-    인성: "이야기를 잘 들어 주고 조언자 역할을 자주 맡아요.",
+    비겁: "여기에 나와 같은 기운이 많아, 친구처럼 대등한 관계를 편하게 느끼고 간섭받는 건 싫어해요.",
+    식상: "여기에 표현의 기운이 많아, 편한 자리에서는 먼저 말을 꺼내 분위기를 띄우기도 해요.",
+    재성: "여기에 현실 감각의 기운이 많아, 관계에서도 서로 실질적인 도움을 주고받는 사이를 잘 만들어요.",
+    관성: "여기에 책임의 기운이 많아, 예의와 약속을 지켜 믿음직하다는 말을 자주 들어요.",
+    인성: "여기에 배움과 보살핌의 기운이 많아, 이야기를 잘 들어 주는 조언자 역할을 자주 맡아요.",
   };
+  // 감정을 바로 드러내는 일간(甲·丙·庚)과 속으로 삭이는 일간을 나눠, 덧붙이는 문장이 반대말이 되지 않게 한다
+  const expressive = ds === 0 || ds === 2 || ds === 6;
+  const emotionTail = expressive
+    ? w["인성"] >= 25 ? " 다만 중요한 감정일수록 한 번 정리한 뒤에 꺼내는 편이에요." : ""
+    : w["식상"] >= 25 ? " 그래도 마음을 정하면 말과 행동으로 분명하게 드러낼 줄 알아요." : "";
   const personality: ReadingItem[] = [
     { title: "타고난 기질", text: dayMaster.summary, basis: `나를 뜻하는 글자(일간) ${STEMS[ds]}(${ELEMENT_KO[dmEl]}) · 기운의 세기 ${st.score}점` },
     { title: "사람을 대할 때", text: `${prof.social} ${groupSocial[topGroup]}`, basis: `가장 많은 기운: ${GROUP_PLAIN[topGroup]} ${w[topGroup]}%` },
     {
       title: "감정 표현",
-      // 일간 성향(속으로 삭임 등)과 식상(표현)이 함께 있으면 모순되지 않게 '평소 → 마음먹으면' 순으로 잇는다
-      text: prof.emotion + (w["식상"] >= 25 ? " 그래도 마음을 정하면 말과 행동으로 분명하게 드러낼 줄 알아요." : w["인성"] >= 25 ? " 감정을 충분히 정리한 뒤에 표현하는 편이에요." : ""),
+      text: prof.emotion + emotionTail,
       basis: `표현하는 기운 ${w["식상"]}% · 생각하는 기운 ${w["인성"]}%`,
     },
-    { title: "강점", text: prof.strengths.join(", ") + (many[0] ? `. 그리고 ${GROUP_MANY[groupOf(many[0])].good}` : "."), basis: `일간 ${STEMS[ds]}${many[0] ? ` · ${ELEMENT_KO[many[0]]} ${counts[many[0]]}개(${groupOf(many[0])})` : ""}` },
-    { title: "조심할 점", text: prof.cautions.join(", ") + (many[0] ? `. 또 ${weak && GROUP_MANY[groupOf(many[0])].careWeak ? GROUP_MANY[groupOf(many[0])].careWeak : GROUP_MANY[groupOf(many[0])].care}` : "."), basis: `일간 ${STEMS[ds]}${many[0] ? ` · ${ELEMENT_KO[many[0]]}이(가) 많음(${groupOf(many[0])})${weak ? " · 신약" : ""}` : ""}` },
+    // 많은 오행의 장단점은 바로 위 '오행 분포' 카드에 같은 문장이 있으므로 여기서는 되풀이하지 않는다
+    { title: "강점", text: `${prof.strengths.slice(0, -1).join(", ")}, 그리고 ${prof.strengths[prof.strengths.length - 1]}이(가) 강점이에요.`, basis: `일간 ${STEMS[ds]}` },
+    { title: "조심할 점", text: prof.cautions.join(" 또 "), basis: `일간 ${STEMS[ds]}` },
   ];
 
   // ── 연애 성향 (취향은 '경향'으로만) ──
@@ -107,19 +114,22 @@ export function buildReading(chart: NatalChart, gender: "male" | "female"): Read
   const loveStyle: ReadingItem[] = [
     {
       title: "나의 연애 스타일",
+      // 끌리는 방식(첫인상/믿음) → 마음을 준 뒤의 모습 순으로 이어, 두 문장이 서로 부딪히지 않게 한다
       text: firstSight
-        ? `사주에 ${chart.shinsal.some((s) => s.name === "도화살") ? "도화(사람을 끄는 매력의 기운)" : "표현의 기운(식상)"}이(가) 있어 첫인상과 설렘에 먼저 끌리는 편이에요! ${STYLE_BY_STEM[ds]}`
-        : `나를 뜻하는 글자가 ${DM_SHORT[ds]}(${STEMS[ds]})이(라), 첫눈에 반하기보다 믿음이 쌓일 때 마음이 깊어지는 편이에요! ${STYLE_BY_STEM[ds]}`,
+        ? `사주에 ${chart.shinsal.some((s) => s.name === "도화살") ? "도화(사람을 끄는 매력의 기운)" : "표현의 기운(식상)"}이(가) 있어 첫인상과 설렘에 먼저 끌리는 편이에요! 그리고 일단 마음을 주면 ${STYLE_BY_STEM[ds]}`
+        : `나를 뜻하는 글자가 ${DM_SHORT[ds]}(${STEMS[ds]})이(라), 첫눈에 반하기보다 믿음이 쌓일 때 마음이 깊어지는 편이에요! 그렇게 마음을 주고 나면 ${STYLE_BY_STEM[ds]}`,
       basis: `일간 ${STEMS[ds]}${firstSight ? " · 도화 또는 식상" : ""}`,
     },
     {
       title: "끌리는 외형",
-      text: `사주에서 이성을 뜻하는 별이 ${ELEMENT_KO[sgEl]}(${ELEMENT_COMMON[sgEl]})의 기운이라, ${outerLook} 외형에 눈길이 가요! ${ELEMENT_BODY[sgEl]}`,
+      // '만나게 될 이성'의 외모 설명과 같은 오행 기준이라, 두 곳의 인상이 같은 사람으로 읽힌다
+      text: `사주에서 이성을 뜻하는 별이 ${ELEMENT_KO[sgEl]}(${ELEMENT_COMMON[sgEl]})의 기운이라, ${outerLook} 분위기의 사람에게 눈길이 가요! ${ELEMENT_BODY[sgEl]}`,
       basis: `나의 기운 ${ELEMENT_KO[dmEl]} + 이성의 별 기운 ${ELEMENT_KO[sgEl]} (전통 해석)`,
     },
     {
       title: "잘 맞는 사람",
-      text: `배우자 자리(일지)에 ${TG_TAG[dayTg]}이(가) 있어 ${PALACE_MATCH[dayTg]}`,
+      // 끌리는 사람(이성의 별)과 오래 맞는 사람(배우자 자리)은 다른 기준이라, '오래 함께하기에는'으로 구분해 쓴다
+      text: `배우자 자리(일지)에 ${TG_TAG[dayTg]}이(가) 있어, 처음 끌리는 모습과는 별개로 오래 함께하기에는 ${PALACE_MATCH[dayTg]}`,
       basis: `일지 ${day.branchChar} · ${dayTg}`,
     },
     {
@@ -172,16 +182,16 @@ export const PALACE_MATCH: Record<TenGod, string> = {
   편인: "취향이 독특하고 생각이 깊어 대화가 늘 새로운 사람이 잘 맞아요!",
   정인: "나를 깊이 이해해 주고 다정하게 챙겨 주는 사람이 잘 맞아요!",
 };
-/** 일간별 연애 방식 한 줄 */
+/** 일간별 '마음을 준 뒤'의 연애 방식 — "그렇게 마음을 주고 나면 / 일단 마음을 주면" 뒤에 이어진다 */
 const STYLE_BY_STEM = [
-  "좋아하면 든든한 버팀목이 되어 주고 싶어 해요.",
-  "세심하게 챙겨 주고 다정한 교감을 나누는 걸 좋아해요.",
+  "상대의 든든한 버팀목이 되어 주려 해요.",
+  "세심하게 챙기며 다정한 교감을 나누고 싶어 해요.",
   "좋아하는 마음을 숨기지 않고 적극적으로 표현해요.",
-  "조용하지만 한번 마음을 주면 오래 깊게 사랑해요.",
-  "말보다 행동과 시간으로 믿음을 보여 주는 편이에요.",
-  "상대를 꼼꼼히 챙기며 함께 생활을 꾸려 가는 걸 좋아해요.",
-  "한번 마음을 정하면 우직하게 지키는 편이에요.",
-  "나를 소중히 대해 주는 섬세한 관계를 원해요.",
-  "서로의 자유를 존중하면서 깊이 통하는 관계를 원해요.",
-  "나를 이해해 주는 따뜻한 사람에게 마음을 열어요.",
+  "조용하지만 오래, 깊게 사랑해요.",
+  "말보다 행동과 시간으로 믿음을 보여 줘요.",
+  "상대를 꼼꼼히 챙기며 함께 생활을 꾸려 가요.",
+  "그 마음을 우직하게 지켜요.",
+  "서로를 소중히 대하는 섬세한 관계를 원해요.",
+  "서로의 자유를 존중하면서도 깊이 통하는 관계를 원해요.",
+  "나를 이해해 주는 따뜻한 관계 안에서 마음을 활짝 열어요.",
 ];

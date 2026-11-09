@@ -133,11 +133,13 @@ export function buildStyleSummary(chart: NatalChart, gender: "male" | "female"):
   else if (chart.strength.score < 40) advice.push("상대에게 맞추다 지치기 쉬워요. 나를 편하게 해 주는 사람인지 꼭 확인하세요.");
   if (w[sg] < 8) advice.push("연애가 우선순위에서 밀리기 쉬운 구조예요. 인연운이 좋은 시기에는 의식적으로 만남의 기회를 만들어 보세요.");
   else if (w[sg] >= 35) advice.push("이성과 인연이 자연스럽게 생기는 편이지만, 관계가 많아질수록 기준을 분명히 하는 것이 좋아요.");
-  if (gender === "male" && w["비겁"] >= 30) advice.push("자존심 대결로 번지지 않도록, 의견이 다를 때 한 박자 쉬어 가세요.");
+  // 나의 기운이 여린 사람에게는 위에서 '맞추다 지치기 쉽다'고 했으므로 '자존심 대결' 조언을 함께 내지 않는다
+  if (gender === "male" && w["비겁"] >= 30 && chart.strength.score >= 40) advice.push("자존심 대결로 번지지 않도록, 의견이 다를 때 한 박자 쉬어 가세요.");
   if (gender === "female" && w["식상"] >= 25 && w["관성"] > 0) advice.push("상대의 부족한 점을 말할 때는 표현을 부드럽게 다듬으면 관계가 오래가요.");
   if (chart.relations.some((r) => r.involvesDayBranch && (r.kind === "충" || r.kind === "형"))) advice.push("관계에 변화가 생기기 쉬운 구조라, 서로의 거리와 생활 방식을 존중하는 관계가 잘 맞아요.");
   if (jW > 0 && pW > 0) advice.push("안정감을 주는 사람과 설렘을 주는 사람 사이에서 고민하기 쉬워요. 내가 오래 원하는 것이 무엇인지 먼저 정리해 보세요.");
-  if (advice.length < 2) advice.push(`${prof.cautions[0]} 경향이 있으니, 관계 초반에 마음을 조금 더 표현해 보세요.`);
+  // 일간별로 쓴 완결 문장 — "~할 수 있음 경향이 있으니"처럼 문장 조각을 이어 붙이지 않는다
+  if (advice.length < 2) advice.push(prof.loveAdvice);
   return { points, advice: advice.slice(0, 3) };
 }
 

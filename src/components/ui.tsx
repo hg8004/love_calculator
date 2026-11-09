@@ -77,13 +77,20 @@ export function Term({ name, className = "" }: { name: string; className?: strin
   return <span className={className}>{name}</span>;
 }
 
+/**
+ * 결과 화면의 모든 큰 단락이 같은 테두리·그림자·제목 크기를 쓰도록 한곳에서 정한다.
+ * (요약·'사주가 처음이라면'·'계산 근거 보기'처럼 Card 를 쓰지 않는 단락도 이 값을 쓴다)
+ */
+export const CARD_FRAME = "card rounded-2xl border border-line bg-sheet/95 shadow-[0_1px_2px_rgba(80,60,20,0.04)]";
+export const SECTION_TITLE = "font-serif text-2xl font-bold leading-snug text-brand";
+
 export function Card({ title, subtitle, children, className = "", action, id }: { title?: React.ReactNode; subtitle?: React.ReactNode; children: React.ReactNode; className?: string; action?: React.ReactNode; id?: string }) {
   return (
-    <section id={id} className={`card scroll-mt-16 rounded-2xl border border-line bg-sheet/95 p-5 shadow-[0_1px_2px_rgba(80,60,20,0.04)] sm:p-6 ${className}`}>
+    <section id={id} className={`${CARD_FRAME} scroll-mt-16 p-5 sm:p-6 ${className}`}>
       {(title || action) && (
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
-            {title && <h2 className="font-serif text-xl font-bold text-brand">{title}</h2>}
+            {title && <h2 className={SECTION_TITLE}>{title}</h2>}
             {subtitle && <p className="mt-1 text-sm text-sub">{subtitle}</p>}
           </div>
           {action}
