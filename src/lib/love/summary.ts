@@ -39,10 +39,24 @@ export interface TimingSummary {
   thisYear: { year: number; score: number; headline: string } | null;
   /** 한 문장 결론 */
   oneLine: string;
+  /** '주목할 달' 기준 점수 — 이 사람의 앞으로 10년 중 상위 5% (최소 60) */
+  strongThreshold: number;
 }
 
-/** 타임라인의 '높음' 이상(60점) — 인연이 찾아올 가능성이 높은 달 */
-const STRONG = 60;
+/**
+ * '가장 빠른 시기'로 짚을 달의 기준.
+ * 고정 점수(예: 60점)만 쓰면 전체 달의 약 40%가 넘어서, 거의 모든 사람이 '1~2달 안'으로 나온다.
+ * 그래서 같은 사람의 앞으로 10년 중 상위 5%(10년에 6달 안팎)에 드는 달만 고르고, 최소 60점(높음)은 넘게 한다.
+ * 타임라인의 '주목' 표시도 같은 기준(strongThreshold)을 써서, 맨 위 달이 곧 타임라인의 첫 '주목' 달이 되게 한다.
+ */
+const MIN_STRONG = 60;
+const TOP_SHARE = 0.05;
+export function strongThresholdOf(scores: number[]): number {
+  if (!scores.length) return MIN_STRONG;
+  const desc = [...scores].sort((a, b) => b - a);
+  const k = Math.max(0, Math.ceil(desc.length * TOP_SHARE) - 1);
+  return Math.max(MIN_STRONG, desc[k]);
+}
 
 /** 그 시기에 오는 인연의 성격 — 진중하게 봐도 될지, 스쳐 가는 인연인지 */
 export const NATURE: Record<string, { label: string; text: string }> = {
@@ -58,8 +72,9 @@ export function buildTimingSummary(years: YearLike[], now: Date): TimingSummary 
   const months = allAhead.filter((m) => m.wolun.startUtc.getTime() < horizon);
   const pick = (m: MonthLike): TimingPick => ({ year: m.wolun.year, month: m.wolun.month, score: m.score.score, type: m.score.type, headline: m.score.headline, nature: NATURE[m.score.type] ?? NATURE.B });
   const chrono = [...allAhead].sort((a, b) => a.wolun.startUtc.getTime() - b.wolun.startUtc.getTime());
-  // 가장 빠른 '가능성 높은' 달 (10년 전체에서) — 없으면 그 기간 최고점
-  const strongFirst = chrono.find((m) => m.score.score >= STRONG);
+  // 가장 빠른 '손꼽히는' 달 (앞으로 10년 중 상위 5% & 60점 이상) — 없으면 그 기간 최고점
+  const strongThreshold = strongThresholdOf(allAhead.map((m) => m.score.score));
+  const strongFirst = chrono.find((m) => m.score.score >= strongThreshold);
   const best = [...allAhead].sort((a, b) => b.score.score - a.score.score)[0];
   const nearest = strongFirst ? pick(strongFirst) : best ? pick(best) : null;
   const upcoming = [...months]
@@ -73,7 +88,7 @@ export function buildTimingSummary(years: YearLike[], now: Date): TimingSummary 
   const oneLine = nearest
     ? `${strongFirst ? "인연이 찾아올 가능성이 높은 가장 빠른 시기는" : "흐름이 잔잔한 편이지만, 그중 인연이 찾아오기 가장 좋은 시기는"} ${nearest.year}년 ${nearest.month}월이에요. ${nearest.nature.text}`
     : "분석 기간 안에서 두드러진 시기를 찾지 못했습니다.";
-  return { nearest, upcoming, bestYears, thisYear, oneLine };
+  return { nearest, upcoming, bestYears, thisYear, oneLine, strongThreshold };
 }
 
 export interface StyleSummary {

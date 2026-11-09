@@ -174,7 +174,8 @@ export default function Timeline({ r, request, sel, setSel }: { r: AnalysisDTO; 
           const el = BRANCH_ELEMENT[m.wolun.branch];
           const col = ELEMENT_COLOR[el];
           const open = sel.month === m.wolun.month;
-          const strong = m.score.score >= 65;
+          // 맨 위 '가장 빠른 시기'와 같은 기준(이 사람의 10년 중 상위 5%)
+          const strong = m.score.score >= r.summary.timing.strongThreshold;
           return (
             <li key={m.wolun.month} className={`relative ${past && !open ? "opacity-55" : ""}`}>
               <span className="absolute -left-6 top-4 size-[19px] rounded-full border-[3px] border-paper" style={{ background: col.glyph }} title={`이 달의 기운: ${ELEMENT_KO[el]}`} aria-hidden="true" />

@@ -41,10 +41,18 @@ describe("인연 시기 요약", () => {
     const r = analyze({ calendar: "solar", location: SEOUL, ...c }, undefined, NOW);
     const t = r.summary.timing;
     expect(t.nearest).not.toBeNull();
-    // 가장 가까운 시기는 지금부터 24개월 안
+    // 가장 빠른 시기 = 앞으로 10년 중 이 사람의 상위 5%(최소 60점)에 드는 첫 달 — 그보다 앞선 달은 기준에 못 미친다
     const nearestMs = Date.UTC(t.nearest!.year, t.nearest!.month - 1, 1);
     expect(nearestMs).toBeGreaterThanOrEqual(Date.UTC(2026, 9, 1));
-    expect(nearestMs).toBeLessThan(Date.UTC(2028, 11, 1));
+    expect(nearestMs).toBeLessThan(Date.UTC(2036, 11, 1));
+    const ahead = r.years.flatMap((y) => y.months).filter((m) => m.wolun.endUtc.getTime() > NOW.getTime());
+    const sorted = [...ahead.map((m) => m.score.score)].sort((a, b) => b - a);
+    expect(t.strongThreshold).toBeGreaterThanOrEqual(60);
+    expect(t.strongThreshold).toBeGreaterThanOrEqual(sorted[Math.ceil(sorted.length * 0.05) - 1]);
+    const idx = ahead.findIndex((m) => m.wolun.year === t.nearest!.year && m.wolun.month === t.nearest!.month);
+    expect(ahead.slice(0, idx).every((m) => m.score.score < t.strongThreshold)).toBe(true);
+    // 10년 안에 '주목할 달'은 상위 5% 안팎으로 드물다 (예전 60점 고정 기준은 약 40%)
+    expect(ahead.filter((m) => m.score.score >= t.strongThreshold).length).toBeLessThanOrEqual(Math.ceil(ahead.length * 0.1));
     // 주목할 달 3개는 시간순, 모두 24개월 안
     expect(t.upcoming).toHaveLength(3);
     for (let i = 1; i < t.upcoming.length; i++) {
